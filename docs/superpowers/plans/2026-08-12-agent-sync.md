@@ -12,7 +12,7 @@
 
 - **Node >= 20.** Yerleşik `node:test`, `node:fs/promises`, `node:crypto` kullanılır.
 - **Sıfır runtime bağımlılığı.** `package.json`'da `dependencies` boş kalır. Araç dağıtılacağı için kurulum sürtünmesi sıfır olmalı.
-- **Platformlar arası:** macOS, Linux, Windows. Yol birleştirme her zaman `node:path` ile; ev dizini her zaman `os.homedir()` ile. Kodda hiçbir yerde `/` veya `\` elle yazılmaz.
+- **Platformlar arası:** macOS, Linux, Windows. **Disk yolları** her zaman `node:path` ile birleştirilir, ev dizini her zaman `os.homedir()` ile alınır; hiçbir disk yolu string birleştirmeyle kurulmaz. Bunun bilinçli istisnası **manifest göreli anahtarlarıdır**: bunlar her zaman POSIX ayracı (`/`) kullanır, çünkü iki platformun manifest'i ancak böyle karşılaştırılabilir. Bu anahtarlar diske dokunmadan önce `path.join(root, ...rel.split('/'))` ile OS yoluna çevrilir. Yani `/` yalnızca *anahtar* olarak geçer, *yol* olarak değil.
 - **Kişisel veri yasak.** Commit edilen hiçbir dosyada gerçek kullanıcı adı, e-posta, mutlak yol veya hesap adı geçmez. Hepsi `config.json`'dan gelir; `config.json` ve `state.json` `.gitignore`'dadır.
 - **Dil:** kod, kod yorumları ve CLI çıktısı İngilizce (araç uluslararası dağıtılacak). README iki dilli: Türkçe + İngilizce.
 - **Hook'lar asla oturumu bloklamaz.** Hook yolundan çağrılan her giriş noktası her koşulda çıkış kodu 0 döner.
@@ -1243,20 +1243,17 @@ git commit -m "feat: add secret scanning and doctor health checks"
 
 ---
 
-### Task 9: CLI kabuğu ve sync akışı
+### Task 9: Motor akışı (`src/sync.mjs`)
 
-Parçaları birleştirir: `pull`, `push`, `status`, `doctor`, `link`, `forget`, hepsinde `--dry-run`.
+Motorun uçtan uca akışı: manifest topla → plan kur → uygula → state yaz. Bu task **CLI üretmez** — CLI, bağımlılıkları hazır olduktan sonra Task 14'te yazılır.
 
 **Files:**
-- Create: `bin/agent-sync.mjs`
 - Create: `src/sync.mjs`
 - Test: `test/sync.test.mjs`
 
 **Interfaces:**
-- Consumes: `loadConfig()`; `collectManifest()`; `buildPlan()`, `ACTION`; `applyPlan()`; `loadState()`, `saveState()`; `takeSnapshot()`; `stagedDir()`, `stagedSkillsDir()`, `stagedSharedDir()`; `runDoctor()`
+- Consumes: `collectManifest()`; `buildPlan()`; `applyPlan()`; `loadState()`, `saveState()`; `takeSnapshot()`; `stagedDir()`, `stagedSkillsDir()`, `stagedSharedDir()`
 - Produces: `syncPairs(config) -> Array<{name, localDir, remoteDir}>`, `runSync({config, dryRun}) -> Promise<{plan, conflicts}>`
-
-**Note on forward references:** `bin/agent-sync.mjs` imports `ensureIdentity`, `linkProject`, `forgetFile` (Task 10), `applyAdapters` (Task 13) and `runWrapped` (Task 14). Those tasks create the modules. Until Task 14 lands, this task's own test (`test/sync.test.mjs`) exercises `syncPairs` directly and does not import the CLI, so it passes standalone.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1364,116 +1361,6 @@ export async function runSync({ config, dryRun }) {
 }
 ```
 
-`bin/agent-sync.mjs`:
-
-```js
-#!/usr/bin/env node
-import process from 'node:process';
-import { loadConfig } from '../src/config.mjs';
-import { runSync, syncPairs } from '../src/sync.mjs';
-import { runDoctor } from '../src/doctor.mjs';
-import { init } from '../src/init.mjs';
-import { ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
-import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
-import { runWrapped } from '../src/run.mjs';
-
-const HELP = `agent-sync <command> [--dry-run]
-
-  init                 Set up this machine: config, sync root, tool targets
-  pull | push          Synchronise skills, memory and shared settings
-  status               Show this machine, this project, targets and pending changes
-  doctor               Health checks: conflicts, registry, secrets
-  link <project-id>    Bind the current directory to an existing project
-  forget <path>        Delete a file locally and remotely on purpose
-  run <command...>     Pull, run the command, then push when it exits
-`;
-
-// Hooks and the VS Code extension call this binary. It must never take a
-// session down with it.
-const HOOK_SAFE = new Set(['pull', 'push']);
-
-async function main() {
-  const [command, ...rest] = process.argv.slice(2);
-  const dryRun = rest.includes('--dry-run');
-  const args = rest.filter((a) => a !== '--dry-run');
-
-  if (!command || command === 'help' || command === '--help') {
-    process.stdout.write(HELP);
-    return 0;
-  }
-  if (command === 'init') return init({ dryRun });
-
-  const config = await loadConfig();
-
-  switch (command) {
-    case 'pull':
-    case 'push': {
-      const identity = await ensureIdentity(config, process.cwd());
-      // Read authored content out of the tools first, or there is nothing to push.
-      if (!dryRun) {
-        await collectFromTools({ config, projectId: identity.id, cwd: process.cwd() });
-      }
-      const { plan, conflicts } = await runSync({ config, dryRun });
-      const prefix = dryRun ? '[dry-run] ' : '';
-      for (const item of plan) {
-        process.stdout.write(`${prefix}${item.action.padEnd(8)} ${item.pair}/${item.relPath}\n`);
-      }
-      if (!plan.length) process.stdout.write(`${prefix}already in sync\n`);
-      // Distribute the freshly synced canonical content to the selected tools.
-      const written = await applyAdapters({
-        config,
-        projectId: identity.id,
-        cwd: process.cwd(),
-        dryRun,
-      });
-      for (const target of written) {
-        process.stdout.write(`${prefix}wrote    ${target.adapter} -> ${target.file}\n`);
-      }
-      for (const c of conflicts) {
-        process.stdout.write(`conflict: ${c.pair}/${c.relPath} - your version kept as ${c.keptAs}\n`);
-      }
-      return 0;
-    }
-    case 'status': {
-      const identity = await ensureIdentity(config, process.cwd(), { write: false });
-      process.stdout.write(`machine:  ${config.machineId}\n`);
-      process.stdout.write(`syncRoot: ${config.syncRoot}\n`);
-      process.stdout.write(`targets:  ${config.targets.join(', ') || 'none'}\n`);
-      process.stdout.write(`project:  ${identity.id} (matched by ${identity.source})\n`);
-      const { plan } = await runSync({ config, dryRun: true });
-      process.stdout.write(`pending:  ${plan.length} change(s)\n`);
-      return 0;
-    }
-    case 'doctor': {
-      const checks = await runDoctor({
-        syncRoot: config.syncRoot,
-        localRoots: syncPairs(config).map((p) => ({ dir: p.localDir })),
-      });
-      for (const c of checks) {
-        process.stdout.write(`${c.status.toUpperCase().padEnd(5)} ${c.name}: ${c.details}\n`);
-      }
-      return checks.some((c) => c.status === 'fail') ? 1 : 0;
-    }
-    case 'link':
-      return linkProject(config, process.cwd(), args[0]);
-    case 'forget':
-      return forgetFile(config, args[0], dryRun);
-    case 'run':
-      return runWrapped(config, args);
-    default:
-      process.stderr.write(`Unknown command: ${command}\n\n${HELP}`);
-      return 1;
-  }
-}
-
-main()
-  .then((code) => process.exit(code ?? 0))
-  .catch((err) => {
-    process.stderr.write(`agent-sync: ${err.message}\n`);
-    // Hook-invoked commands always exit 0 so a broken sync never blocks a session.
-    process.exit(HOOK_SAFE.has(process.argv[2]) ? 0 : 1);
-  });
-```
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1483,8 +1370,8 @@ Expected: PASS — 2 tests
 - [ ] **Step 5: Commit**
 
 ```bash
-git add bin/agent-sync.mjs src/sync.mjs test/sync.test.mjs
-git commit -m "feat: add CLI and end-to-end sync flow"
+git add src/sync.mjs test/sync.test.mjs
+git commit -m "feat: add end-to-end sync flow over the mirrored trees"
 ```
 
 ---
@@ -2367,17 +2254,20 @@ git commit -m "feat: add run wrapper that syncs around any agent command"
 
 ---
 
-### Task 14: Etkileşimli kurulum
+### Task 14: Etkileşimli kurulum ve CLI kabuğu
 
-Makinede kurulu araçları tespit eder, seçtirir, `<syncRoot>` iskeletini kurar. Hook kurulumu artık opsiyonel — VS Code extension'ı tetiklemeyi üstlenecekse gerekmez.
+Makinede kurulu araçları tespit eder, seçtirir, `<syncRoot>` iskeletini kurar. Hook kurulumu opsiyonel — VS Code extension tetiklemeyi üstlenecekse gerekmez.
+
+Bu task ayrıca **CLI binary'sini yazar**. CLI bilinçli olarak sona bırakıldı: `bin/agent-sync.mjs` Task 9, 10, 12, 13'ün modüllerini import eder, dolayısıyla daha erken yazılsaydı çalıştırılamayan bir binary ortaya çıkardı. Şimdi tüm bağımlılıkları mevcut.
 
 **Files:**
 - Create: `src/init.mjs`
+- Create: `bin/agent-sync.mjs`
 - Test: `test/init.test.mjs`
 
 **Interfaces:**
-- Consumes: `DEFAULT_CONFIG`, `saveConfig()`, `validateConfig()`; `detectInstalled()`, `byId()`; `stagedDir()`
-- Produces: `parseSelection(input, options) -> string[]`, `init({dryRun}) -> Promise<number>`
+- Consumes: `DEFAULT_CONFIG`, `saveConfig()`, `validateConfig()`, `configPath()`, `loadConfig()`; `detectInstalled()`, `byId()`, `applyAdapters()`, `collectFromTools()`; `stagedDir()`; `runSync()`, `syncPairs()`; `ensureIdentity()`, `linkProject()`, `forgetFile()`; `runWrapped()`; `runDoctor()`
+- Produces: `parseSelection(input, options) -> string[]`, `init({dryRun}) -> Promise<number>`, çalıştırılabilir `bin/agent-sync.mjs`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2509,10 +2399,126 @@ export async function init({ dryRun }) {
 }
 ```
 
+`bin/agent-sync.mjs`:
+
+```js
+#!/usr/bin/env node
+import process from 'node:process';
+import { loadConfig } from '../src/config.mjs';
+import { runSync, syncPairs } from '../src/sync.mjs';
+import { runDoctor } from '../src/doctor.mjs';
+import { init } from '../src/init.mjs';
+import { ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
+import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
+import { runWrapped } from '../src/run.mjs';
+
+const HELP = `agent-sync <command> [--dry-run]
+
+  init                 Set up this machine: config, sync root, tool targets
+  pull | push          Synchronise skills, memory and shared settings
+  status               Show this machine, this project, targets and pending changes
+  doctor               Health checks: conflicts, registry, secrets
+  link <project-id>    Bind the current directory to an existing project
+  forget <path>        Delete a file locally and remotely on purpose
+  run <command...>     Pull, run the command, then push when it exits
+`;
+
+// Hooks and the VS Code extension call this binary. It must never take a
+// session down with it.
+const HOOK_SAFE = new Set(['pull', 'push']);
+
+async function main() {
+  const [command, ...rest] = process.argv.slice(2);
+  const dryRun = rest.includes('--dry-run');
+  const args = rest.filter((a) => a !== '--dry-run');
+
+  if (!command || command === 'help' || command === '--help') {
+    process.stdout.write(HELP);
+    return 0;
+  }
+  if (command === 'init') return init({ dryRun });
+
+  const config = await loadConfig();
+
+  switch (command) {
+    case 'pull':
+    case 'push': {
+      const identity = await ensureIdentity(config, process.cwd());
+      // Read authored content out of the tools first, or there is nothing to push.
+      if (!dryRun) {
+        await collectFromTools({ config, projectId: identity.id, cwd: process.cwd() });
+      }
+      const { plan, conflicts } = await runSync({ config, dryRun });
+      const prefix = dryRun ? '[dry-run] ' : '';
+      for (const item of plan) {
+        process.stdout.write(`${prefix}${item.action.padEnd(8)} ${item.pair}/${item.relPath}\n`);
+      }
+      if (!plan.length) process.stdout.write(`${prefix}already in sync\n`);
+      // Distribute the freshly synced canonical content to the selected tools.
+      const written = await applyAdapters({
+        config,
+        projectId: identity.id,
+        cwd: process.cwd(),
+        dryRun,
+      });
+      for (const target of written) {
+        process.stdout.write(`${prefix}wrote    ${target.adapter} -> ${target.file}\n`);
+      }
+      for (const c of conflicts) {
+        process.stdout.write(`conflict: ${c.pair}/${c.relPath} - your version kept as ${c.keptAs}\n`);
+      }
+      return 0;
+    }
+    case 'status': {
+      const identity = await ensureIdentity(config, process.cwd(), { write: false });
+      process.stdout.write(`machine:  ${config.machineId}\n`);
+      process.stdout.write(`syncRoot: ${config.syncRoot}\n`);
+      process.stdout.write(`targets:  ${config.targets.join(', ') || 'none'}\n`);
+      process.stdout.write(`project:  ${identity.id} (matched by ${identity.source})\n`);
+      const { plan } = await runSync({ config, dryRun: true });
+      process.stdout.write(`pending:  ${plan.length} change(s)\n`);
+      return 0;
+    }
+    case 'doctor': {
+      const checks = await runDoctor({
+        syncRoot: config.syncRoot,
+        localRoots: syncPairs(config).map((p) => ({ dir: p.localDir })),
+      });
+      for (const c of checks) {
+        process.stdout.write(`${c.status.toUpperCase().padEnd(5)} ${c.name}: ${c.details}\n`);
+      }
+      return checks.some((c) => c.status === 'fail') ? 1 : 0;
+    }
+    case 'link':
+      return linkProject(config, process.cwd(), args[0]);
+    case 'forget':
+      return forgetFile(config, args[0], dryRun);
+    case 'run':
+      return runWrapped(config, args);
+    default:
+      process.stderr.write(`Unknown command: ${command}\n\n${HELP}`);
+      return 1;
+  }
+}
+
+main()
+  .then((code) => process.exit(code ?? 0))
+  .catch((err) => {
+    process.stderr.write(`agent-sync: ${err.message}\n`);
+    // Hook-invoked commands always exit 0 so a broken sync never blocks a session.
+    process.exit(HOOK_SAFE.has(process.argv[2]) ? 0 : 1);
+  });
+```
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node --test test/init.test.mjs`
 Expected: PASS — 8 tests
+
+Ayrıca CLI'ın gerçekten çalıştığını doğrula:
+
+Run: `node bin/agent-sync.mjs help`
+Expected: komut listesi yazılır, çıkış kodu 0
 
 - [ ] **Step 5: Run the whole suite and commit**
 
@@ -2520,8 +2526,8 @@ Run: `npm test`
 Expected: PASS — all files, 0 failures
 
 ```bash
-git add src/init.mjs test/init.test.mjs
-git commit -m "feat: add interactive setup with tool detection and selection"
+git add src/init.mjs bin/agent-sync.mjs test/init.test.mjs
+git commit -m "feat: add interactive setup and CLI entry point"
 ```
 
 ---
