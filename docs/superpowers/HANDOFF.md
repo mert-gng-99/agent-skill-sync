@@ -24,9 +24,9 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 15 |
+| Tamamlanan | 16 |
 | Yazılan ama review edilmeyen | **0** |
-| Test durumu | 90/90 geçiyor, çıktı temiz |
+| Test durumu | 94/94 geçiyor, çıktı temiz |
 
 ### Task durumları
 
@@ -47,7 +47,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 13 | `run` sarmalayıcısı | `src/run.mjs` | ✅ **Tamamlandı** |
 | 14 | Etkileşimli kurulum ve CLI kabuğu | `src/init.mjs`, `bin/agent-sync.mjs` | ✅ **Tamamlandı** |
 | 15 | Dağıtım paketi | `README.md`, `LICENSE` | ✅ **Tamamlandı** |
-| 16 | VS Code extension kabuğu | `extension/*` | ⬜ |
+| 16 | VS Code extension kabuğu | `extension/*` | ✅ **Tamamlandı** |
 
 
 **Task 1 neden "tamamlandı" değil:** kod yazıldı ve testleri geçiyor, ama bağımsız bir gözden geçirmeden geçmedi. Bu projede bir task, review'dan temiz dönene kadar bitmiş sayılmaz.
