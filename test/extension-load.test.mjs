@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Module from 'node:module';
 import { createRequire } from 'node:module';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+// activate() now touches config.json (see applyVsCodeSettings in extension.cjs);
+// without this it would read and write the real machine's ~/.agent-sync.
+useIsolatedHome();
 
 const require = createRequire(import.meta.url);
 
@@ -23,9 +28,9 @@ test('the entry point loads the way the extension host loads it', () => {
   assert.equal(typeof extension.deactivate, 'function');
 });
 
-test('activate registers the three contributed commands', () => {
+test('activate registers the three contributed commands', async () => {
   const context = { subscriptions: [] };
-  extension.activate(context);
+  await extension.activate(context);
 
   const ids = vscodeStub.__registeredCommands.map((c) => c.id).sort();
   assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.sync']);
@@ -38,4 +43,29 @@ test('the engine is reachable from the CommonJS entry point', async () => {
   const engine = await import('../src/sync.mjs');
   assert.equal(typeof engine.runSync, 'function');
   assert.equal(typeof engine.syncPairs, 'function');
+});
+
+test('unset VS Code settings never clobber an existing config.json', () => {
+  // VS Code reports "" / [] for settings the user never touched. Without this
+  // guard, activating the extension on a machine already set up via the CLI
+  // would silently wipe its syncRoot back to empty.
+  const fileConfig = { syncRoot: '/Volumes/Drive/agent-sync', machineId: 'macbook', targets: ['claude'] };
+  const merged = extension.mergeVsCodeSettings(fileConfig, { syncRoot: '', machineId: '', targets: [] });
+  assert.deepEqual(merged, fileConfig);
+});
+
+test('a setting the user actually changed in the UI overrides the file', () => {
+  const fileConfig = { syncRoot: '/old/path', machineId: 'macbook', targets: ['claude'] };
+  const merged = extension.mergeVsCodeSettings(fileConfig, {
+    syncRoot: '/new/path',
+    machineId: '',
+    targets: ['claude', 'codex'],
+  });
+  assert.deepEqual(merged, { syncRoot: '/new/path', machineId: 'macbook', targets: ['claude', 'codex'] });
+});
+
+test('merging never mutates the file config that was passed in', () => {
+  const fileConfig = { syncRoot: '/x', machineId: 'macbook', targets: [] };
+  extension.mergeVsCodeSettings(fileConfig, { syncRoot: '/y', machineId: '', targets: [] });
+  assert.equal(fileConfig.syncRoot, '/x');
 });

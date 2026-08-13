@@ -17,7 +17,10 @@ function engine() {
       import('../src/project.mjs'),
       import('../src/doctor.mjs'),
     ]).then(([config, sync, adapters, project, doctor]) => ({
+      DEFAULT_CONFIG: config.DEFAULT_CONFIG,
+      validateConfig: config.validateConfig,
       loadConfig: config.loadConfig,
+      saveConfig: config.saveConfig,
       runSync: sync.runSync,
       syncPairs: sync.syncPairs,
       applyAdapters: adapters.applyAdapters,
@@ -27,6 +30,48 @@ function engine() {
     }));
   }
   return enginePromise;
+}
+
+/**
+ * VS Code's Settings UI reports "" / [] for anything the user never touched -
+ * there is no way to distinguish "unset" from "deliberately cleared" in the
+ * declarative settings schema. Treating an unset value as authoritative would
+ * mean opening the extension on a machine already configured via `init`
+ * silently wipes its config.json back to empty. So only a genuinely non-empty
+ * VS Code value overrides the file; anything else leaves the file alone.
+ */
+function mergeVsCodeSettings(fileConfig, vsCodeSettings) {
+  const merged = { ...fileConfig };
+  if (vsCodeSettings.syncRoot) merged.syncRoot = vsCodeSettings.syncRoot;
+  if (vsCodeSettings.machineId) merged.machineId = vsCodeSettings.machineId;
+  if (vsCodeSettings.targets && vsCodeSettings.targets.length > 0) {
+    merged.targets = vsCodeSettings.targets;
+  }
+  return merged;
+}
+
+function readVsCodeSettings() {
+  const cfg = vscode.workspace.getConfiguration('agent-sync');
+  return {
+    syncRoot: cfg.get('syncRoot', ''),
+    machineId: cfg.get('machineId', ''),
+    targets: cfg.get('targets', []),
+  };
+}
+
+/**
+ * Makes the Settings UI a real control surface instead of a cosmetic one:
+ * whatever the user sets there is folded into ~/.agent-sync/config.json,
+ * the single file the CLI and this extension both read. This also lets a
+ * fresh install be configured entirely from Settings, with no terminal.
+ */
+async function applyVsCodeSettings() {
+  const { DEFAULT_CONFIG, validateConfig, loadConfig, saveConfig } = await engine();
+  const fileConfig = await loadConfig().catch(() => DEFAULT_CONFIG);
+  const merged = mergeVsCodeSettings(fileConfig, readVsCodeSettings());
+  if (JSON.stringify(merged) === JSON.stringify(fileConfig)) return;
+  if (!validateConfig(merged).ok) return; // Still missing syncRoot or machineId - nothing to save yet.
+  await saveConfig(merged);
 }
 
 let statusItem;
@@ -112,7 +157,7 @@ async function sync({ silent, direction = 'both' }) {
   }
 }
 
-function activate(context) {
+async function activate(context) {
   output = vscode.window.createOutputChannel('agent-sync');
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
   statusItem.command = 'agent-sync.sync';
@@ -152,9 +197,17 @@ function activate(context) {
     // Focus lost is the moment to send up whatever this session produced.
     vscode.window.onDidChangeWindowState((s) => {
       sync({ silent: true, direction: s.focused ? 'in' : 'out' });
+    }),
+    // The Settings UI is the point of this listener: a change there should
+    // reach config.json (and the next sync) without reloading the window.
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (!e.affectsConfiguration('agent-sync')) return;
+      await applyVsCodeSettings();
+      sync({ silent: true, direction: 'both' });
     })
   );
 
+  await applyVsCodeSettings();
   sync({ silent: true, direction: 'in' });
 }
 
@@ -162,4 +215,4 @@ function deactivate() {
   return sync({ silent: true, direction: 'out' });
 }
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, mergeVsCodeSettings };

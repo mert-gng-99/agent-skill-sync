@@ -49,10 +49,12 @@
         "agent-sync.targets": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "enum": ["claude", "codex", "opencode", "gemini", "aider", "cursor"]
           },
+          "uniqueItems": true,
           "default": [],
-          "description": "Which agents to write context for."
+          "description": "Which agents to write context for. Pick from the list - no need to edit JSON by hand."
         }
       }
     }

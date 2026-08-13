@@ -76,6 +76,8 @@ code --install-extension agent-sync-0.1.0.vsix
 
 VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 
+**Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir — `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`); JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur — Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.
+
 ### 8. Bilinçli Sınırlar
 - **Silme yayılmaz**: Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
 - **Tetikleme**: Senkronizasyon anlık streaming değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.
@@ -155,6 +157,8 @@ code --install-extension agent-sync-0.1.0.vsix
 ```
 
 Restart VS Code; `agent-sync` then appears in the status bar.
+
+**Settings** (`Cmd/Ctrl + ,` → search "agent-sync"): `syncRoot`, `machineId`, and `targets` can be edited directly there - no need to hand-edit `config.json`. `targets` is a pick-list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free-text JSON. Leaving a field untouched keeps whatever is already in `config.json` - the Settings UI only overrides fields you've actually changed.
 
 ### 8. Design Constraints
 - **Deletions do not propagate**: Absent files are restored from remote. Use `agent-sync forget <path>` for intentional deletions.

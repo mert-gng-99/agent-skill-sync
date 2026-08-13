@@ -43,6 +43,12 @@ module.exports = {
   },
   workspace: {
     workspaceFolders: undefined,
+    // Empty defaults, matching what VS Code reports for settings the user
+    // never touched - exercises the "must not clobber config.json" path.
+    getConfiguration: () => ({
+      get: (key, fallback) => fallback,
+    }),
+    onDidChangeConfiguration: () => disposable(),
   },
   __registeredCommands: registeredCommands,
 };

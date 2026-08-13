@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { KNOWN_TARGETS } from '../src/config.mjs';
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 
@@ -24,6 +25,13 @@ test('activates on startup so window events can be observed', () => {
 test('exposes syncRoot, machineId and targets as settings', () => {
   const keys = Object.keys(manifest.contributes.configuration.properties).sort();
   assert.deepEqual(keys, ['agent-sync.machineId', 'agent-sync.syncRoot', 'agent-sync.targets']);
+});
+
+test('the targets setting offers a pick-list matching every known adapter', () => {
+  // Keeps the Settings UI's dropdown in lockstep with config.mjs's own list -
+  // a new adapter that forgets this entry is invisible in the UI, not broken.
+  const targetsProp = manifest.contributes.configuration.properties['agent-sync.targets'];
+  assert.deepEqual(targetsProp.items.enum.slice().sort(), [...KNOWN_TARGETS].sort());
 });
 
 test('has no runtime dependencies, matching the engine', () => {
