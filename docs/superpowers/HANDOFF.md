@@ -24,9 +24,9 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 4 |
+| Tamamlanan | 5 |
 | Yazılan ama review edilmeyen | **0** |
-| Test durumu | 29/29 geçiyor, çıktı temiz |
+| Test durumu | 34/34 geçiyor, çıktı temiz |
 
 ### Task durumları
 
@@ -36,7 +36,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 2 | Config modülü (`targets` dahil) | `src/config.mjs` | ✅ **Tamamlandı** |
 | 3 | Senkron karar motoru (saf) | `src/state.mjs`, `src/sync-engine.mjs` | ✅ **Tamamlandı** |
 | 4 | Manifest tarayıcı ve snapshot | `src/manifest.mjs`, `src/snapshot.mjs` | ✅ **Tamamlandı** |
-| 5 | Uygulama katmanı (çakışma yönetimi) | `src/apply.mjs` | ⬜ |
+| 5 | Uygulama katmanı (çakışma yönetimi) | `src/apply.mjs` | ✅ **Tamamlandı** |
 | 6 | Registry ve kimlik çözümleme | `src/registry.mjs`, `src/identity.mjs` | ⬜ |
 | 7 | `settings.json` seçici merge | `src/settings-merge.mjs` | ⬜ |
 | 8 | Sır taraması ve doctor | `src/secrets.mjs`, `src/doctor.mjs` | ⬜ |
