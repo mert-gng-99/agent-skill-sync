@@ -40,8 +40,10 @@ async function main() {
     case 'pull':
     case 'push': {
       const identity = await ensureIdentity(config, process.cwd());
-      // Read authored content out of the tools first, or there is nothing to push.
-      if (!dryRun) {
+      // Only push reads authored content out of the tools. Collecting before a
+      // pull manufactures a local copy that was never synced, which the engine
+      // then correctly reports as a conflict - a false alarm on every new machine.
+      if (command === 'push' && !dryRun) {
         await collectFromTools({ config, projectId: identity.id, cwd: process.cwd() });
       }
       const { plan, conflicts } = await runSync({ config, dryRun });
