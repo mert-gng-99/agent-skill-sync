@@ -3,6 +3,18 @@ import path from 'node:path';
 import { ACTION } from './sync-engine.mjs';
 import { hashContent } from './state.mjs';
 
+const CONFLICT_MARKER = '.conflict-';
+
+/**
+ * Conflict copies are deliberately local records: they preserve the losing
+ * side so nothing is ever destroyed. They must never travel to syncRoot,
+ * or they propagate to every machine and, since deletions do not propagate,
+ * never go away.
+ */
+export function isConflictArtifact(relPath) {
+  return relPath.includes(CONFLICT_MARKER);
+}
+
 function pad(n) {
   return String(n).padStart(2, '0');
 }
@@ -13,7 +25,7 @@ export function conflictName(relPath, machineId, date) {
     `-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}`;
   const ext = path.posix.extname(relPath);
   const stem = ext ? relPath.slice(0, -ext.length) : relPath;
-  return `${stem}.conflict-${machineId}-${stamp}${ext}`;
+  return `${stem}${CONFLICT_MARKER}${machineId}-${stamp}${ext}`;
 }
 
 async function copy(fromRoot, toRoot, relPath) {

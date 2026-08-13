@@ -2,9 +2,18 @@ import path from 'node:path';
 import { stagedDir, stagedSkillsDir, stagedSharedDir } from './paths.mjs';
 import { collectManifest } from './manifest.mjs';
 import { buildPlan } from './sync-engine.mjs';
-import { applyPlan } from './apply.mjs';
+import { applyPlan, isConflictArtifact } from './apply.mjs';
 import { loadState, saveState } from './state.mjs';
 import { takeSnapshot } from './snapshot.mjs';
+
+/** Keeps conflict copies out of the sync entirely - see isConflictArtifact. */
+export function withoutConflictArtifacts(manifest) {
+  const out = new Map();
+  for (const [rel, hash] of manifest) {
+    if (!isConflictArtifact(rel)) out.set(rel, hash);
+  }
+  return out;
+}
 
 /**
  * The three mirrored trees, all local sides living under ~/.agent-sync/staged.
@@ -42,8 +51,8 @@ export async function runSync({ config, dryRun }) {
   }
 
   for (const pair of syncPairs(config)) {
-    const local = await collectManifest(pair.localDir);
-    const remote = await collectManifest(pair.remoteDir);
+    const local = withoutConflictArtifacts(await collectManifest(pair.localDir));
+    const remote = withoutConflictArtifacts(await collectManifest(pair.remoteDir));
     const base = state.files[pair.name] ?? {};
     const plan = buildPlan(local, remote, base);
 

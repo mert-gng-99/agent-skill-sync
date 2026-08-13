@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { syncPairs, runSync } from '../src/sync.mjs';
+import { syncPairs, runSync, withoutConflictArtifacts } from '../src/sync.mjs';
+import { isConflictArtifact } from '../src/apply.mjs';
 
 test('pairs cover skills, global memory and shared docs', () => {
   const pairs = syncPairs({ syncRoot: '/sync', machineId: 'macbook' });
@@ -24,4 +25,20 @@ test('runSync executes end-to-end sync plan', async () => {
   const res = await runSync({ config, dryRun: false });
   assert.ok(Array.isArray(res.plan));
   assert.ok(Array.isArray(res.conflicts));
+});
+
+test('conflict artifacts are recognised by their filename', () => {
+  assert.equal(isConflictArtifact('shared/settings-shared.conflict-pc-20260813-0632.json'), true);
+  assert.equal(isConflictArtifact('memory/p/note.conflict-macbook-20260101-0000.md'), true);
+  assert.equal(isConflictArtifact('shared/settings-shared.json'), false);
+  assert.equal(isConflictArtifact('memory/p/note.md'), false);
+});
+
+test('sync drops conflict artifacts from both sides so they are never propagated', () => {
+  const manifest = new Map([
+    ['note.md', 'h1'],
+    ['note.conflict-pc-20260813-0632.md', 'h2'],
+    ['deep/other.md', 'h3'],
+  ]);
+  assert.deepEqual([...withoutConflictArtifacts(manifest).keys()].sort(), ['deep/other.md', 'note.md']);
 });
