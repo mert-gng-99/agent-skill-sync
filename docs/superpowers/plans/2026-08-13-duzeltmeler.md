@@ -627,3 +627,189 @@ ls ~/.agent-sync/config.json 2>/dev/null && echo "DUR: araç kurulmuş, elle inc
 ```
 
 `config.json` varsa **silme** — kullanıcının gerçek verisi olabilir, önce ona sor.
+
+---
+
+# FİNAL REVIEW (Görev E) — dalın tamamına bakış
+
+Görev A–G tamamlandıktan sonra `main`'den bu yana olan tüm değişiklikler bütün olarak incelendi. Üç bulgu çıktı.
+
+---
+
+## Bulgu 7 (KRİTİK) — VS Code extension asla push edemiyor
+
+### Belirti
+
+`extension/extension.mjs` içindeki `sync()` fonksiyonu şu sırayı izliyor:
+
+```
+loadConfig → ensureIdentity → runSync → applyAdapters
+```
+
+**`collectFromTools` hiç çağrılmıyor.** Karşılaştır, CLI'ın `push` yolu:
+
+```
+ensureIdentity → collectFromTools → runSync
+```
+
+### Neden kritik
+
+`collectFromTools`, kullanıcının araçta ürettiği içeriği (Claude'un hafıza dizini, skill'ler, ayarlar) kanonik depoya okuyan **tek** mekanizmadır. Extension onu hiç çağırmadığı için akış tek yönlü: kanonik depo → araçlar. Kullanıcının o oturumda yazdığı hiçbir hafıza notu `staged/`'e, dolayısıyla `syncRoot`'a **asla ulaşmıyor**.
+
+Tasarımda extension **birincil tetikleme mekanizması** olarak tanımlı (spec: "VS Code extension (birincil)"). Yani ana kullanım yolu yazamıyor; yalnızca okuyabiliyor. Kullanıcı VS Code içinde çalışıp `deactivate`'e güveniyorsa işi hiçbir zaman diğer makineye geçmez.
+
+Ek olarak, spec `deactivate` **ve odak kaybı** → `push` diyor. `onDidChangeWindowState` yalnızca `s.focused` durumunu ele alıyor; odak kaybında hiçbir şey yapılmıyor.
+
+---
+
+### Görev H: Extension'a push yolu eklensin
+
+**Dosyalar:**
+- Modify: `extension/extension.mjs`
+
+**Tasarım:** CLI'daki `pull`/`push` ayrımını extension'da da kur. Tek bir `sync()` yerine iki yön:
+
+| Fonksiyon | Sıra | Tetikleyici |
+|---|---|---|
+| `syncIn()` (pull) | `runSync` → `applyAdapters` | `activate`, pencere odak **kazanma** |
+| `syncOut()` (push) | `collectFromTools` → `runSync` | `deactivate`, pencere odak **kaybı** |
+| `agent-sync.sync` komutu | `collectFromTools` → `runSync` → `applyAdapters` | elle basınca ikisi birden |
+
+- [ ] **Adım 1: Düzelt**
+
+`extension/extension.mjs` — import'a ekle:
+
+```js
+import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
+```
+
+`sync({ silent })` fonksiyonunu, yön alan bir hâle getir. Durum çubuğu/hata yakalama mantığını aynen koru, yalnızca hangi adımların koştuğunu yöne bağla:
+
+```js
+/**
+ * One sync pass. `direction` decides which half of the round trip runs:
+ *   'in'   - bring remote changes down and write them into the tools
+ *   'out'  - read what the tools authored and send it up
+ *   'both' - the manual command; do the full round trip
+ * Never throws into VS Code - failures surface in the status bar and the
+ * output channel, they do not interrupt the user.
+ */
+async function sync({ silent, direction = 'both' }) {
+  const cwd = workspaceRoot();
+  if (!cwd) return;
+  try {
+    const config = await loadConfig();
+    const identity = await ensureIdentity(config, cwd);
+
+    if (direction !== 'in') {
+      await collectFromTools({ config, projectId: identity.id, cwd });
+    }
+    const { plan, conflicts } = await runSync({ config, dryRun: false });
+    if (direction !== 'out') {
+      await applyAdapters({ config, projectId: identity.id, cwd, dryRun: false });
+    }
+
+    // ... status bar / tooltip / output block stays exactly as it is ...
+  } catch (err) {
+    // ... unchanged ...
+  }
+}
+```
+
+Çağrı yerlerini güncelle:
+
+```js
+    vscode.commands.registerCommand('agent-sync.sync', () => sync({ silent: false, direction: 'both' })),
+```
+
+```js
+    // Focus regained means another machine may have pushed since we last looked.
+    // Focus lost is the moment to send up whatever this session produced.
+    vscode.window.onDidChangeWindowState((s) => {
+      sync({ silent: true, direction: s.focused ? 'in' : 'out' });
+    })
+```
+
+```js
+  sync({ silent: true, direction: 'in' });   // activate
+}
+
+export function deactivate() {
+  return sync({ silent: true, direction: 'out' });
+}
+```
+
+- [ ] **Adım 2: Testi ekle**
+
+`test/extension-manifest.test.mjs` yalnızca manifest'i doğruluyor; `extension.mjs` `vscode` modülünü import ettiği için test sürecinde yüklenemez. Bu yüzden **statik bir kontrol** ekle — ucuz ama bu hatayı tam olarak yakalar:
+
+```js
+import fs from 'node:fs';
+
+test('the extension performs both halves of the round trip', () => {
+  const source = fs.readFileSync(
+    path.join(root, 'extension', 'extension.mjs'), 'utf8'
+  );
+  // Without collectFromTools the extension can only pull: nothing the user
+  // authored during the session would ever reach syncRoot.
+  assert.match(source, /collectFromTools/);
+  assert.match(source, /applyAdapters/);
+});
+
+test('window blur triggers a sync, not only focus', () => {
+  const source = fs.readFileSync(
+    path.join(root, 'extension', 'extension.mjs'), 'utf8'
+  );
+  const handler = source.slice(source.indexOf('onDidChangeWindowState'));
+  assert.ok(
+    !/if\s*\(\s*s\.focused\s*\)\s*sync/.test(handler),
+    'blur must also sync - a focus-only guard drops the push'
+  );
+});
+```
+
+- [ ] **Adım 3: Doğrula**
+
+`npm test` → 99 + 2 = 101 test geçmeli. Adım 1'den önce çalıştırırsan ikisinin de düşmesi gerekir; hatanın gerçekten yakalandığını böyle görürsün.
+
+- [ ] **Adım 4: Commit**
+
+```bash
+git add extension/extension.mjs test/extension-manifest.test.mjs
+git commit -m "fix: give the extension a push path, not just a pull path"
+```
+
+---
+
+## Bulgu 8 (ÖNEMLİ) — Sırlar uyarısız buluta gidiyor
+
+Spec şunu vaat ediyor:
+
+> **Sır taraması:** `<syncRoot>`'a gidecek dosyalarda API anahtarı/token kalıpları. Hafıza notları buluta çıktığı ve araç halka açık dağıtılacağı için, **sır içeren bir not push edilmeden önce uyarı verilir.**
+
+Gerçekte tarama yalnızca `doctor` komutunda var. `push` yolu `ensureIdentity → collectFromTools → runSync`; hiçbir noktada sır taraması yok. Kullanıcı `doctor`'ı elle çalıştırmazsa sır sessizce Google Drive'a çıkar, oradan diğer iki makineye ve Drive'ın sürüm geçmişine yayılır.
+
+### Görev I: Push'tan önce sır taraması — ÖNCE MERT'E SOR
+
+**Bu bir tasarım kararı içeriyor, uygulamadan önce onay al.** İki seçenek var:
+
+- **(a) Uyar ve devam et** — spec'in lafzı bu. Ama uyarıyı okuduğunda dosya çoktan Drive'a gitmiş olur; bulut senkronu ve sürüm geçmişi bir daha geri alınamaz. Pratikte koruma sağlamaz.
+- **(b) Uyar ve o dosyayı push etme** *(önerilen)* — sır içeren dosya yerelde kalır, diğerleri normal push edilir. "Hiçbir şey sessizce kaybolmaz" ilkesi korunur (dosya duruyor, sadece gitmiyor) ve sızıntı gerçekten önlenir. Kullanıcı sırrı temizleyip tekrar push eder.
+
+Mert (b) derse:
+
+- [ ] `src/sync.mjs` içinde push edilecek dosyalar belirlendikten **sonra**, `applyPlan` çağrılmadan **önce**, PUSH aksiyonlu dosyaları `scanForSecrets` ile tara.
+- [ ] Bulgu olanları plandan çıkar ve `runSync`'in dönüş değerine `skipped: [{relPath, findings}]` olarak ekle.
+- [ ] `bin/agent-sync.mjs` bunları belirgin biçimde yazsın: `blocked  <pair>/<relPath> - looks like a secret (<kind> at line N); not pushed`.
+- [ ] Test: sahte bir anahtar içeren staged dosya push planından çıkarılmalı, yanındaki temiz dosya çıkarılmamalı.
+- [ ] `README.md`'nin iki bölümüne de bu davranışı yaz.
+
+---
+
+## Bulgu 9 (RİSK — elle doğrulanmalı, kod değişikliği gerekmeyebilir)
+
+`extension/package.json` `"main": "./extension.mjs"` diyor ve dosya ESM (`import vscode from 'vscode'`). VS Code'un eklenti barındırıcısı geleneksel olarak CommonJS bekler; ESM desteği yeni sürümlerde var ama sürüme bağlı ve kırılgan. Hiçbir otomatik test bunu yakalayamaz — eklenti yüklenmezse testler yine yeşil kalır.
+
+- [ ] Eklentiyi gerçekten paketle ve kur: `npx @vscode/vsce package` → `code --install-extension agent-sync-vscode-0.1.0.vsix`
+- [ ] VS Code'u aç, durum çubuğunda öğenin belirdiğini gör, `agent-sync: Sync now` komutunu çalıştır.
+- [ ] Yüklenmiyorsa (Extension Host log'unda `ERR_REQUIRE_ESM` benzeri hata): `extension.mjs` → `extension.cjs`'e çevir, `import` yerine `require` kullan, `package.json`'daki `main` alanını güncelle. Motor tarafına dokunma — orası ESM kalmalı.
