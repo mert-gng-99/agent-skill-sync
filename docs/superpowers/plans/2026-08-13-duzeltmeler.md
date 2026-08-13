@@ -306,11 +306,11 @@ echo "SMOKE TEST PASSED"
 
 ---
 
-## Bulgu 4 — Bütünsel gözden geçirme yapılmadı
+## Bulgu 4 — Bütünsel gözden geçirme yapılmadı (KAPANDI)
 
 Task'lar tek tek incelendi ama dalın tamamına bakan bir tur atılmadı. Yukarıdaki hata tam da tek task'a bakınca görünmeyen, sistem bütününde ortaya çıkan cinsten.
 
-### Görev E: Final review
+### Görev E: Final review — ✅ YAPILDI (Bulgu 7-9 bu turdan çıktı)
 
 - [ ] Görev A–D bittikten sonra `main`'den bu yana olan tüm diff'i tek seferde gözden geçir.
 - [ ] Özellikle bak: modüller arası sıralama varsayımları (kim kimden önce çalışmalı), HANDOFF'un 6. bölümündeki global kısıtların ihlali, testlerin gerçekten davranış doğrulayıp doğrulamadığı, ölü kod.
@@ -789,20 +789,250 @@ Spec şunu vaat ediyor:
 
 Gerçekte tarama yalnızca `doctor` komutunda var. `push` yolu `ensureIdentity → collectFromTools → runSync`; hiçbir noktada sır taraması yok. Kullanıcı `doctor`'ı elle çalıştırmazsa sır sessizce Google Drive'a çıkar, oradan diğer iki makineye ve Drive'ın sürüm geçmişine yayılır.
 
-### Görev I: Push'tan önce sır taraması — ÖNCE MERT'E SOR
+### Görev I: Sır içeren dosya push edilmesin (karar verildi: blokla + `--force`)
 
-**Bu bir tasarım kararı içeriyor, uygulamadan önce onay al.** İki seçenek var:
+**Karar:** Mert (b) seçeneğini onayladı — uyar **ve o dosyayı push etme**, `--force` ile geçiş yolu bırak. Gerekçe: uyarı verip devam etmek işe yaramıyor, çünkü uyarıyı okuduğunda dosya çoktan bulut klasöründe, oradan diğer makinelere ve sağlayıcının sürüm geçmişine geçmiş olur — geri alınamaz. Bu, `git-secrets` / `gitleaks` gibi araçların standart şekli: blokla, ne bulduğunu söyle, kullanıcı isterse geçsin.
 
-- **(a) Uyar ve devam et** — spec'in lafzı bu. Ama uyarıyı okuduğunda dosya çoktan Drive'a gitmiş olur; bulut senkronu ve sürüm geçmişi bir daha geri alınamaz. Pratikte koruma sağlamaz.
-- **(b) Uyar ve o dosyayı push etme** *(önerilen)* — sır içeren dosya yerelde kalır, diğerleri normal push edilir. "Hiçbir şey sessizce kaybolmaz" ilkesi korunur (dosya duruyor, sadece gitmiyor) ve sızıntı gerçekten önlenir. Kullanıcı sırrı temizleyip tekrar push eder.
+**Yanlış pozitif gerçek bir risk.** Tarayıcının kalıplarından biri `PASSWORD|SECRET|TOKEN|API_KEY` içeren bir değişkene 8+ karakter atanmasını yakalıyor; "DATABASE_PASSWORD 1Password'da duruyor" gibi meşru bir hafıza notu da buna takılır. `--force` tam olarak bunun için var. Bloklanan dosya **silinmez, yerelde kalır** ve ekrana yazılır — sessiz kayıp yok.
 
-Mert (b) derse:
+**Dosyalar:**
+- Modify: `src/sync.mjs`
+- Modify: `bin/agent-sync.mjs`
+- Modify: `README.md`
+- Test: `test/sync.test.mjs`
 
-- [ ] `src/sync.mjs` içinde push edilecek dosyalar belirlendikten **sonra**, `applyPlan` çağrılmadan **önce**, PUSH aksiyonlu dosyaları `scanForSecrets` ile tara.
-- [ ] Bulgu olanları plandan çıkar ve `runSync`'in dönüş değerine `skipped: [{relPath, findings}]` olarak ekle.
-- [ ] `bin/agent-sync.mjs` bunları belirgin biçimde yazsın: `blocked  <pair>/<relPath> - looks like a secret (<kind> at line N); not pushed`.
-- [ ] Test: sahte bir anahtar içeren staged dosya push planından çıkarılmalı, yanındaki temiz dosya çıkarılmamalı.
-- [ ] `README.md`'nin iki bölümüne de bu davranışı yaz.
+- [ ] **Adım 1: Düşen testleri yaz**
+
+`test/sync.test.mjs` dosyasına ekle (dosyada `useIsolatedHome()` zaten çağrılıyor, staged dizini sandbox içinde):
+
+```js
+import { stagedSharedDir } from '../src/paths.mjs';
+
+const FAKE_KEY = 'sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+async function stagedFixture() {
+  // Each case starts from an empty staged tree; the isolated HOME is shared
+  // across tests in this file.
+  await fs.rm(stagedSharedDir(), { recursive: true, force: true });
+  await fs.mkdir(stagedSharedDir(), { recursive: true });
+  await fs.writeFile(path.join(stagedSharedDir(), 'safe.md'), 'We chose Postgres.');
+  await fs.writeFile(path.join(stagedSharedDir(), 'leaky.md'), `API key: ${FAKE_KEY}\n`);
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-secret-root-'));
+  return { syncRoot, config: { syncRoot, machineId: 'macbook', targets: [], snapshotKeep: 5 } };
+}
+
+test('a staged file that looks like a secret is withheld from the push', async () => {
+  const { syncRoot, config } = await stagedFixture();
+  const res = await runSync({ config, dryRun: false });
+
+  assert.deepEqual(res.blocked.map((b) => b.relPath), ['leaky.md']);
+  assert.ok(res.plan.some((p) => p.relPath === 'safe.md'), 'clean file must still be planned');
+  assert.ok(!res.plan.some((p) => p.relPath === 'leaky.md'), 'blocked file must leave the plan');
+
+  await fs.readFile(path.join(syncRoot, 'shared', 'safe.md'), 'utf8');
+  await assert.rejects(
+    () => fs.readFile(path.join(syncRoot, 'shared', 'leaky.md')),
+    'the secret must never reach syncRoot'
+  );
+});
+
+test('the withheld file stays on disk locally - nothing is destroyed', async () => {
+  const { config } = await stagedFixture();
+  await runSync({ config, dryRun: false });
+  const kept = await fs.readFile(path.join(stagedSharedDir(), 'leaky.md'), 'utf8');
+  assert.match(kept, /sk-ant-api03/);
+});
+
+test('force pushes the flagged file anyway, for false positives', async () => {
+  const { syncRoot, config } = await stagedFixture();
+  const res = await runSync({ config, dryRun: false, force: true });
+
+  assert.deepEqual(res.blocked, []);
+  const landed = await fs.readFile(path.join(syncRoot, 'shared', 'leaky.md'), 'utf8');
+  assert.match(landed, /sk-ant-api03/);
+});
+
+test('secrets already in syncRoot are still pulled - the gate is outbound only', async () => {
+  const { syncRoot, config } = await stagedFixture();
+  await fs.rm(stagedSharedDir(), { recursive: true, force: true });
+  await fs.mkdir(path.join(syncRoot, 'shared'), { recursive: true });
+  await fs.writeFile(path.join(syncRoot, 'shared', 'inbound.md'), `key: ${FAKE_KEY}\n`);
+
+  const res = await runSync({ config, dryRun: false });
+  assert.deepEqual(res.blocked, []);
+  await fs.readFile(path.join(stagedSharedDir(), 'inbound.md'), 'utf8');
+});
+```
+
+Son test önemli: kapı **yalnızca dışa doğru**. Uzaktan gelen bir dosyayı bloklamak yanlış olur — o zaten paylaşılmış durumda ve engellemek yalnızca senkronu bozar.
+
+- [ ] **Adım 2: Testleri çalıştır, düştüklerini gör**
+
+`node --test test/sync.test.mjs` → `res.blocked` `undefined` olduğu için düşmeli.
+
+- [ ] **Adım 3: Düzelt — `src/sync.mjs`**
+
+Import'lara ekle:
+
+```js
+import fs from 'node:fs/promises';
+import { ACTION } from './sync-engine.mjs';
+import { scanForSecrets } from './secrets.mjs';
+```
+
+`runSync`'ten önce yardımcıyı ekle:
+
+```js
+/**
+ * Files heading out to syncRoot are the point of no return: once a credential
+ * reaches a cloud folder it is replicated to every machine and kept in that
+ * provider's version history, so a warning printed afterwards protects nothing.
+ * Scan PUSH candidates here and withhold the ones that look like they carry
+ * secrets. Nothing is destroyed - the file stays local and is reported - and
+ * `force` sends it anyway when the match is a false positive.
+ * Inbound files are not scanned: they are already shared, and blocking them
+ * would only break the sync.
+ */
+async function withholdSecrets(plan, localDir, force) {
+  if (force) return { safe: plan, blocked: [] };
+  const safe = [];
+  const blocked = [];
+  for (const item of plan) {
+    if (item.action !== ACTION.PUSH) {
+      safe.push(item);
+      continue;
+    }
+    const abs = path.join(localDir, ...item.relPath.split('/'));
+    const findings = scanForSecrets(await fs.readFile(abs, 'utf8').catch(() => ''));
+    if (findings.length) blocked.push({ relPath: item.relPath, findings });
+    else safe.push(item);
+  }
+  return { safe, blocked };
+}
+```
+
+`runSync` imzasını ve gövdesini güncelle:
+
+```js
+export async function runSync({ config, dryRun, force = false }) {
+  const state = await loadState();
+  const allConflicts = [];
+  const allBlocked = [];
+  const fullPlan = [];
+```
+
+Döngü içinde `buildPlan` ile `applyPlan` arasına süzgeci koy ve **`plan` yerine `safe` uygula**:
+
+```js
+    const plan = buildPlan(local, remote, base);
+    const { safe, blocked } = await withholdSecrets(plan, pair.localDir, force);
+
+    const { applied, conflicts } = await applyPlan(safe, {
+      localRoot: pair.localDir,
+      remoteRoot: pair.remoteDir,
+      machineId: config.machineId,
+      dryRun,
+    });
+```
+
+Döngü sonundaki toplama satırlarını güncelle — `fullPlan`'a artık `safe` gitmeli, yoksa CLI bloklanan dosya için "push" yazar:
+
+```js
+    fullPlan.push(...safe.map((p) => ({ ...p, pair: pair.name })));
+    allConflicts.push(...conflicts.map((c) => ({ ...c, pair: pair.name })));
+    allBlocked.push(...blocked.map((b) => ({ ...b, pair: pair.name })));
+```
+
+Ve dönüşü:
+
+```js
+  return { plan: fullPlan, conflicts: allConflicts, blocked: allBlocked };
+```
+
+`state` güncellemesine dokunma: bloklanan dosya `applied` içinde olmadığı için hash'i kaydedilmez, bir sonraki çalıştırmada tekrar denenir. İstenen davranış bu.
+
+- [ ] **Adım 4: Düzelt — `bin/agent-sync.mjs`**
+
+Argüman ayrıştırmasına `--force` ekle:
+
+```js
+  const dryRun = rest.includes('--dry-run');
+  const force = rest.includes('--force');
+  const args = rest.filter((a) => a !== '--dry-run' && a !== '--force');
+```
+
+`pull`/`push` bloğunda `runSync` çağrısını ve raporlamayı güncelle:
+
+```js
+      const { plan, conflicts, blocked } = await runSync({ config, dryRun, force });
+```
+
+Çakışma raporlamasının hemen yanına ekle (stderr'e, çünkü bu bir uyarı):
+
+```js
+      for (const b of blocked) {
+        const where = b.findings.map((f) => `${f.kind} at line ${f.line}`).join(', ');
+        process.stderr.write(
+          `blocked  ${b.pair}/${b.relPath} - looks like a secret (${where}); ` +
+            `kept local, not pushed. Re-run with --force to send it anyway.\n`
+        );
+      }
+```
+
+`HELP` metnini güncelle:
+
+```js
+const HELP = `agent-sync <command> [--dry-run] [--force]
+
+  init                 Set up this machine: config, sync root, tool targets
+  pull | push          Synchronise skills, memory and shared settings
+  status               Show this machine, this project, targets and pending changes
+  doctor               Health checks: conflicts, registry, secrets
+  link <project-id>    Bind the current directory to an existing project
+  forget <path>        Delete a file locally and remotely on purpose
+  run <command...>     Pull, run the command, then push when it exits
+
+  --force              Push files even when they look like they contain secrets
+`;
+```
+
+`src/run.mjs` ve `extension/extension.mjs` içindeki `runSync` çağrılarına dokunma — `force` varsayılan olarak `false`, istenen davranış bu.
+
+- [ ] **Adım 5: Testleri çalıştır**
+
+`npm test` → 99 + 4 = 103 test (Görev H de yapıldıysa 105).
+
+- [ ] **Adım 6: Elle doğrula**
+
+```bash
+SB=$(mktemp -d); mkdir -p "$SB/home/.agent-sync/staged/shared" "$SB/drive" "$SB/proj"
+cat > "$SB/home/.agent-sync/config.json" <<EOF
+{ "syncRoot": "$SB/drive", "machineId": "macbook", "targets": [],
+  "syncTranscripts": false, "snapshotKeep": 20 }
+EOF
+echo 'key: sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' \
+  > "$SB/home/.agent-sync/staged/shared/leaky.md"
+( export HOME="$SB/home"; cd "$SB/proj" && node "$OLDPWD/bin/agent-sync.mjs" push )
+echo "--- syncRoot'a gitti mi? (gitmemeli) ---"
+ls "$SB/drive/shared/" 2>/dev/null || echo "  boş - doğru"
+( export HOME="$SB/home"; cd "$SB/proj" && node "$OLDPWD/bin/agent-sync.mjs" push --force )
+echo "--- --force ile gitti mi? (gitmeli) ---"
+ls "$SB/drive/shared/"
+rm -rf "$SB"
+```
+
+Beklenen: ilk push `blocked  shared/leaky.md - looks like a secret (anthropic-key at line 1); kept local, not pushed.` yazar ve `syncRoot` boş kalır; `--force` ile dosya gider.
+
+- [ ] **Adım 7: README**
+
+Türkçe ve İngilizce bölümlerin ikisine de ekle: push, dışarı çıkacak dosyalarda sır taraması yapar; şüpheli dosya **push edilmez, yerelde kalır** ve raporlanır; yanlış pozitifte `--force` kullanılır; gelen dosyalar taranmaz.
+
+- [ ] **Adım 8: Commit**
+
+```bash
+git add src/sync.mjs bin/agent-sync.mjs test/sync.test.mjs README.md
+git commit -m "feat: withhold files that look like they carry secrets from the push"
+```
 
 ---
 
