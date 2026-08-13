@@ -4,6 +4,12 @@ import { hashContent } from './state.mjs';
 
 export const IGNORED_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'state.json', 'config.json']);
 
+// A skill or memory folder can itself be a git checkout (e.g. cloned from a
+// marketplace). Its .git internals are not content anyone authored - syncing
+// them ships hundreds of loose objects and pack files for no reason, and
+// stock sample hook scripts routinely false-positive the secret scanner.
+const IGNORED_DIRS = new Set(['.git']);
+
 /**
  * Returns a map of POSIX-style relative path -> content hash. Relative paths
  * always use forward slashes so a manifest is comparable across platforms.
@@ -22,6 +28,7 @@ export async function collectManifest(rootDir) {
       const abs = path.join(dir, entry.name);
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
+        if (IGNORED_DIRS.has(entry.name)) continue;
         await walk(abs, rel);
       } else if (entry.isFile()) {
         out.set(rel, hashContent(await fs.readFile(abs)));

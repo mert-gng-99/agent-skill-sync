@@ -45,6 +45,18 @@ test('ignored names include system files and state/config json', () => {
   assert.ok(IGNORED_NAMES.has('config.json'));
 });
 
+test('skips .git directories entirely - a skill cloned from a repo must not sync its internals', async () => {
+  const dir = await fixture();
+  await fs.mkdir(path.join(dir, '.git', 'objects'), { recursive: true });
+  await fs.writeFile(path.join(dir, '.git', 'HEAD'), 'ref: refs/heads/main');
+  await fs.writeFile(path.join(dir, '.git', 'objects', 'deadbeef'), 'blob');
+  await fs.mkdir(path.join(dir, 'nested', '.git'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'nested', '.git', 'config'), '[core]');
+
+  const m = await collectManifest(dir);
+  assert.deepEqual([...m.keys()].sort(), ['a.md', 'nested/b.md']);
+});
+
 test('takeSnapshot creates snapshot directory and copies pairs', async () => {
   const dir = await fixture();
   const snapPath = await takeSnapshot([{ name: 'test-src', dir }], 5);
