@@ -16,7 +16,7 @@
 
 > ⚠️ **Önemli Uyarı**: `syncRoot` dizini içine kesinlikle bir `.git` deposu (`git init`) koymayın. İki farklı makineden eşzamanlı yazma durumunda `.git` veritabanı bozulabilir.
 
-### 3. Kurulum
+### 3. Kurulum ve Testler
 1. Depoyu klonlayın:
    ```bash
    git clone https://github.com/user/agent-sync.git
@@ -26,6 +26,9 @@
    ```bash
    node bin/agent-sync.mjs init
    ```
+3. Testleri çalıştırmak için:
+   - Birim testleri: `npm test`
+   - Uçtan uca smoke testi: `./scripts/smoke-test.sh` (izole geçici bir `HOME` dizininde çalıştığından gerçek bilgisayarınızdaki dizinlere dokunmaz).
 
 ### 4. Komutlar
 `node bin/agent-sync.mjs <command>` (veya `npm link` ile `agent-sync <command>`):
@@ -83,7 +86,7 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
 
 > ⚠️ **Warning**: Do not place a Git repository (`.git`) directly inside `syncRoot`. Concurrent writes from multiple machines will corrupt the Git database.
 
-### 3. Installation
+### 3. Installation & Testing
 1. Clone the repository:
    ```bash
    git clone https://github.com/user/agent-sync.git
@@ -93,6 +96,9 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
    ```bash
    node bin/agent-sync.mjs init
    ```
+3. Run tests:
+   - Unit tests: `npm test`
+   - End-to-end smoke test: `./scripts/smoke-test.sh` (runs entirely inside an isolated temporary `$HOME`, making it completely safe and non-destructive to your real `~/.claude` and `~/.agent-sync` environments).
 
 ### 4. CLI Commands
 `node bin/agent-sync.mjs <command>` (or `agent-sync <command>`):
