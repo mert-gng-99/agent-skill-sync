@@ -1,7 +1,7 @@
 import vscode from 'vscode';
 import { loadConfig } from '../src/config.mjs';
 import { runSync, syncPairs } from '../src/sync.mjs';
-import { applyAdapters } from '../src/adapters/index.mjs';
+import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
 import { ensureIdentity } from '../src/project.mjs';
 import { runDoctor } from '../src/doctor.mjs';
 
@@ -13,17 +13,27 @@ function workspaceRoot() {
 }
 
 /**
- * One sync pass. Never throws into VS Code - a broken sync shows up in the
- * status bar and the output channel, it does not interrupt the user.
+ * One sync pass. `direction` decides which half of the round trip runs:
+ *   'in'   - bring remote changes down and write them into the tools
+ *   'out'  - read what the tools authored and send it up
+ *   'both' - the manual command; do the full round trip
+ * Never throws into VS Code - failures surface in the status bar and the
+ * output channel, they do not interrupt the user.
  */
-async function sync({ silent }) {
+async function sync({ silent, direction = 'both' }) {
   const cwd = workspaceRoot();
   if (!cwd) return;
   try {
     const config = await loadConfig();
     const identity = await ensureIdentity(config, cwd);
+
+    if (direction !== 'in') {
+      await collectFromTools({ config, projectId: identity.id, cwd });
+    }
     const { plan, conflicts } = await runSync({ config, dryRun: false });
-    await applyAdapters({ config, projectId: identity.id, cwd, dryRun: false });
+    if (direction !== 'out') {
+      await applyAdapters({ config, projectId: identity.id, cwd, dryRun: false });
+    }
 
     const time = new Date().toLocaleTimeString();
     statusItem.text = conflicts.length
@@ -51,7 +61,7 @@ export function activate(context) {
   context.subscriptions.push(
     statusItem,
     output,
-    vscode.commands.registerCommand('agent-sync.sync', () => sync({ silent: false })),
+    vscode.commands.registerCommand('agent-sync.sync', () => sync({ silent: false, direction: 'both' })),
     vscode.commands.registerCommand('agent-sync.doctor', async () => {
       const config = await loadConfig();
       const checks = await runDoctor({
@@ -72,14 +82,15 @@ export function activate(context) {
       );
     }),
     // Focus regained means another machine may have pushed since we last looked.
+    // Focus lost is the moment to send up whatever this session produced.
     vscode.window.onDidChangeWindowState((s) => {
-      if (s.focused) sync({ silent: true });
+      sync({ silent: true, direction: s.focused ? 'in' : 'out' });
     })
   );
 
-  sync({ silent: true });
+  sync({ silent: true, direction: 'in' });
 }
 
 export function deactivate() {
-  return sync({ silent: true });
+  return sync({ silent: true, direction: 'out' });
 }

@@ -26,3 +26,24 @@ test('exposes syncRoot, machineId and targets as settings', () => {
 test('has no runtime dependencies, matching the engine', () => {
   assert.deepEqual(manifest.dependencies ?? {}, {});
 });
+
+test('the extension performs both halves of the round trip', () => {
+  const source = fs.readFileSync(
+    path.join(root, 'extension', 'extension.mjs'), 'utf8'
+  );
+  // Without collectFromTools the extension can only pull: nothing the user
+  // authored during the session would ever reach syncRoot.
+  assert.match(source, /collectFromTools/);
+  assert.match(source, /applyAdapters/);
+});
+
+test('window blur triggers a sync, not only focus', () => {
+  const source = fs.readFileSync(
+    path.join(root, 'extension', 'extension.mjs'), 'utf8'
+  );
+  const handler = source.slice(source.indexOf('onDidChangeWindowState'));
+  assert.ok(
+    !/if\s*\(\s*s\.focused\s*\)\s*sync/.test(handler),
+    'blur must also sync - a focus-only guard drops the push'
+  );
+});
