@@ -24,15 +24,15 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 0 |
-| Yazılan ama review edilmeyen | **1** |
-| Test durumu | 4/4 geçiyor, çıktı temiz |
+| Tamamlanan | 1 |
+| Yazılan ama review edilmeyen | **0** |
+| Test durumu | 5/5 geçiyor, çıktı temiz |
 
 ### Task durumları
 
 | # | Task | Dosyalar | Durum |
 |---|---|---|---|
-| 1 | Proje iskeleti ve yol/slug modülü | `package.json`, `src/paths.mjs` | ⚠️ **Yazıldı, review edilmedi** (commit `b70feb3`) |
+| 1 | Proje iskeleti ve yol/slug modülü | `package.json`, `src/paths.mjs` | ✅ **Tamamlandı** |
 | 2 | Config modülü (`targets` dahil) | `src/config.mjs` | ⬜ |
 | 3 | Senkron karar motoru (saf) | `src/state.mjs`, `src/sync-engine.mjs` | ⬜ |
 | 4 | Manifest tarayıcı ve snapshot | `src/manifest.mjs`, `src/snapshot.mjs` | ⬜ |
@@ -48,6 +48,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 14 | Etkileşimli kurulum ve CLI kabuğu | `src/init.mjs`, `bin/agent-sync.mjs` | ⬜ |
 | 15 | Dağıtım paketi | `README.md`, `LICENSE` | ⬜ |
 | 16 | VS Code extension kabuğu | `extension/*` | ⬜ |
+
 
 **Task 1 neden "tamamlandı" değil:** kod yazıldı ve testleri geçiyor, ama bağımsız bir gözden geçirmeden geçmedi. Bu projede bir task, review'dan temiz dönene kadar bitmiş sayılmaz.
 
