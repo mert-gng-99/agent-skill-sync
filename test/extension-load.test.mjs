@@ -69,3 +69,23 @@ test('merging never mutates the file config that was passed in', () => {
   extension.mergeVsCodeSettings(fileConfig, { syncRoot: '/y', machineId: '', targets: [] });
   assert.equal(fileConfig.syncRoot, '/x');
 });
+
+test('an unset syncTranscripts leaves the file value alone, true or false', () => {
+  assert.equal(
+    extension.mergeVsCodeSettings({ syncTranscripts: true }, { syncTranscripts: undefined })
+      .syncTranscripts,
+    true
+  );
+  assert.equal(
+    extension.mergeVsCodeSettings({ syncTranscripts: false }, { syncTranscripts: undefined })
+      .syncTranscripts,
+    false
+  );
+});
+
+test('an explicit false overrides the file - booleans have no "empty" to hide behind', () => {
+  // Unlike syncRoot/targets, false is a real, meaningful value here - it must
+  // not be mistaken for "the user never touched this setting."
+  const merged = extension.mergeVsCodeSettings({ syncTranscripts: true }, { syncTranscripts: false });
+  assert.equal(merged.syncTranscripts, false);
+});

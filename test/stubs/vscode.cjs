@@ -47,6 +47,9 @@ module.exports = {
     // never touched - exercises the "must not clobber config.json" path.
     getConfiguration: () => ({
       get: (key, fallback) => fallback,
+      // undefined/undefined matches what VS Code reports for a setting the
+      // user never touched - exercises the "leave the file alone" path.
+      inspect: () => ({ workspaceValue: undefined, globalValue: undefined }),
     }),
     onDidChangeConfiguration: () => disposable(),
   },

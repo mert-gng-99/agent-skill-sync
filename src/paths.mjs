@@ -32,3 +32,7 @@ export function stagedMemoryDir(projectId) {
 export function stagedSharedDir() {
   return path.join(stagedDir(), 'shared');
 }
+
+export function stagedTranscriptsDir(projectId) {
+  return path.join(stagedDir(), 'transcripts', projectId);
+}

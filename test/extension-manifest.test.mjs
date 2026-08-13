@@ -22,9 +22,20 @@ test('activates on startup so window events can be observed', () => {
   assert.ok(manifest.activationEvents.includes('onStartupFinished'));
 });
 
-test('exposes syncRoot, machineId and targets as settings', () => {
+test('exposes syncRoot, machineId, targets and syncTranscripts as settings', () => {
   const keys = Object.keys(manifest.contributes.configuration.properties).sort();
-  assert.deepEqual(keys, ['agent-sync.machineId', 'agent-sync.syncRoot', 'agent-sync.targets']);
+  assert.deepEqual(keys, [
+    'agent-sync.machineId',
+    'agent-sync.syncRoot',
+    'agent-sync.syncTranscripts',
+    'agent-sync.targets',
+  ]);
+});
+
+test('syncTranscripts is a real checkbox, defaulting off', () => {
+  const prop = manifest.contributes.configuration.properties['agent-sync.syncTranscripts'];
+  assert.equal(prop.type, 'boolean');
+  assert.equal(prop.default, false);
 });
 
 test('the targets setting offers a pick-list matching every known adapter', () => {

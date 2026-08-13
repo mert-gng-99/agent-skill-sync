@@ -2,7 +2,13 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { slugForPath, stagedMemoryDir, stagedSkillsDir, stagedSharedDir } from '../paths.mjs';
+import {
+  slugForPath,
+  stagedMemoryDir,
+  stagedSkillsDir,
+  stagedSharedDir,
+  stagedTranscriptsDir,
+} from '../paths.mjs';
 import { mergeShared, extractShared } from '../settings-merge.mjs';
 
 const MARK = 'agent-sync';
@@ -76,7 +82,7 @@ export const claude = {
    * store, because it is where the user actually authors memory and skills.
    * Without this the staged tree would stay empty and nothing would ever sync.
    */
-  async collect({ projectId, cwd }) {
+  async collect({ projectId, cwd, config }) {
     await fs.mkdir(stagedMemoryDir(projectId), { recursive: true });
     await fs.mkdir(stagedSkillsDir(), { recursive: true });
     await fs.mkdir(stagedSharedDir(), { recursive: true });
@@ -99,5 +105,50 @@ export const claude = {
       JSON.stringify(extractShared(settings), null, 2) + '\n',
       'utf8'
     );
+
+    if (config?.syncTranscripts) {
+      await this.collectTranscripts({ projectId, cwd });
+    }
+  },
+
+  /**
+   * Mirrors this project's session transcripts (*.jsonl) into the canonical
+   * store, keyed by project id rather than this machine's path-derived slug -
+   * so a session started here can be found again on a different machine,
+   * under a different absolute path, once distributeTranscripts places it in
+   * that machine's own slug folder for `claude --resume` to see.
+   *
+   * Off by default (config.syncTranscripts): unlike memory notes, transcripts
+   * are large, grow without bound, and were never curated for sharing - a
+   * pasted secret lands here verbatim, which is exactly why this pair still
+   * goes through the same push-time secret gate as everything else.
+   */
+  async collectTranscripts({ projectId, cwd }) {
+    const dest = stagedTranscriptsDir(projectId);
+    await fs.mkdir(dest, { recursive: true });
+    const src = path.join(claudeHome(), 'projects', slugForPath(cwd));
+    const entries = await fs.readdir(src).catch(() => []);
+    for (const name of entries) {
+      if (!name.endsWith('.jsonl')) continue;
+      await fs.copyFile(path.join(src, name), path.join(dest, name)).catch(() => {});
+    }
+  },
+
+  /**
+   * Inverse of collectTranscripts: after a pull, copies every session this
+   * project has accumulated across machines into this machine's own project
+   * folder. `claude --resume` only looks at the local slug folder, so a
+   * session recorded elsewhere is invisible to it until this runs.
+   */
+  async distributeTranscripts({ projectId, cwd }) {
+    const src = stagedTranscriptsDir(projectId);
+    const entries = await fs.readdir(src).catch(() => []);
+    if (entries.length === 0) return;
+    const dest = path.join(claudeHome(), 'projects', slugForPath(cwd));
+    await fs.mkdir(dest, { recursive: true });
+    for (const name of entries) {
+      if (!name.endsWith('.jsonl')) continue;
+      await fs.copyFile(path.join(src, name), path.join(dest, name)).catch(() => {});
+    }
   },
 };

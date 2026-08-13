@@ -45,14 +45,16 @@ async function withholdSecrets(plan, localDir, force) {
 }
 
 /**
- * The three mirrored trees, all local sides living under ~/.agent-sync/staged.
- * The engine deliberately knows nothing about any agent's directories - getting
+ * The mirrored trees, all local sides living under ~/.agent-sync/staged. The
+ * engine deliberately knows nothing about any agent's directories - getting
  * content into CLAUDE.md, AGENTS.md and friends is the adapters' job.
  * `memory` carries every project's notes at once because the whole set is only
- * a few hundred kilobytes.
+ * a few hundred kilobytes - `transcripts` does not share that justification
+ * (session files are large and unbounded), which is why it only exists at all
+ * when the user has opted in.
  */
 export function syncPairs(config) {
-  return [
+  const pairs = [
     { name: 'skills', localDir: stagedSkillsDir(), remoteDir: path.join(config.syncRoot, 'skills') },
     {
       name: 'memory',
@@ -65,6 +67,14 @@ export function syncPairs(config) {
       remoteDir: path.join(config.syncRoot, 'shared'),
     },
   ];
+  if (config.syncTranscripts) {
+    pairs.push({
+      name: 'transcripts',
+      localDir: path.join(stagedDir(), 'transcripts'),
+      remoteDir: path.join(config.syncRoot, 'transcripts'),
+    });
+  }
+  return pairs;
 }
 
 export async function runSync({ config, dryRun, force = false }) {

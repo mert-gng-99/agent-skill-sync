@@ -47,15 +47,24 @@ function mergeVsCodeSettings(fileConfig, vsCodeSettings) {
   if (vsCodeSettings.targets && vsCodeSettings.targets.length > 0) {
     merged.targets = vsCodeSettings.targets;
   }
+  // Booleans have no "empty" value to signal "untouched" the way "" or []
+  // do above - false is just as meaningful as true - so this field alone
+  // is read with getConfiguration().inspect() and arrives as undefined
+  // when the user genuinely never set it, never as a stand-in default.
+  if (vsCodeSettings.syncTranscripts !== undefined) {
+    merged.syncTranscripts = vsCodeSettings.syncTranscripts;
+  }
   return merged;
 }
 
 function readVsCodeSettings() {
   const cfg = vscode.workspace.getConfiguration('agent-sync');
+  const transcripts = cfg.inspect('syncTranscripts');
   return {
     syncRoot: cfg.get('syncRoot', ''),
     machineId: cfg.get('machineId', ''),
     targets: cfg.get('targets', []),
+    syncTranscripts: transcripts?.workspaceValue ?? transcripts?.globalValue,
   };
 }
 

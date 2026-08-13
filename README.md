@@ -84,6 +84,15 @@ VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 - **Skill'ler**: Yalnızca Claude Code üzerinde otomatik araç/skill olarak tetiklenir; diğer araçlarda okunabilir metin olarak erişilebilir durumdadır.
 - **Sır Güvenliği**: Dışarı çıkacak (`push`) dosyalarda API anahtarları/şifreler taranır. Şüpheli dosyalar **push edilmez, yerelde kalır** ve raporlanır. Yanlış pozitif durumlarında `--force` parametresiyle push zorlanabilir. Gelen (`pull`) dosyalar taranmaz.
 
+### 9. Oturum Devamlılığı (Transkript Senkronu)
+
+Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede — farklı klasör yolunda, farklı işletim sisteminde — açıldığında, Claude Code oturumlarının kaldığı yerden devam etmesini istiyorsan `syncTranscripts` ayarını aç (eklenti Ayarlar ekranından veya `config.json`'da). Açıkken:
+
+- Bu projenin `.jsonl` oturum dosyaları proje kimliğine göre (yol'a göre değil) `<syncRoot>/transcripts/<proje-id>/` altında saklanır.
+- Diğer makinede aynı projeyi `pull` ettiğinde, o dosyalar **o makinenin kendi yol-bağımlı klasörüne** kopyalanır — `claude --resume` orada onları görür ve listeler.
+- Varsayılan **kapalı**: transkript dosyaları büyük ve sürekli büyüyen içerik taşır, hafıza notları gibi süzülmüş değildir. Diğer her şey gibi push öncesi sır taraması bu dosyalardan da geçer.
+- **Bilinen sınır**: konuşmanın metni (ne konuşuldu, ne karar verildi) birebir gelir. Ama transkript içindeki eski dosya okuma/yazma kayıtları kaynağı makinenin mutlak yollarına referans verir — hedef makinede o yollar yoktur. Yani "devam et" isteği çalışır, ama eski bir tool sonucuna geri dönmek çalışmaz.
+
 ---
 
 ## English Documentation
@@ -163,6 +172,15 @@ Restart VS Code; `agent-sync` then appears in the status bar.
 ### 8. Design Constraints
 - **Deletions do not propagate**: Absent files are restored from remote. Use `agent-sync forget <path>` for intentional deletions.
 - **Secret Protection**: Outbound files (`push`) are scanned for API keys and passwords. Suspected files are **withheld from the push and kept locally**. Use the `--force` flag to override false positives. Inbound files (`pull`) are not blocked.
+
+### 9. Session Continuity (Transcript Sync)
+
+If the same project (same git remote or project id) is opened on a different machine - different folder path, different OS - and you want Claude Code sessions to pick up where they left off, turn on `syncTranscripts` (from the extension's Settings, or in `config.json`). When enabled:
+
+- This project's `.jsonl` session files are stored keyed by project id (not by path) under `<syncRoot>/transcripts/<project-id>/`.
+- Pulling the same project on another machine copies those files into **that machine's own path-derived folder** - `claude --resume` finds and lists them there.
+- Off by **default**: transcripts are large and grow without bound, and are not curated the way memory notes are. They go through the same pre-push secret scan as everything else.
+- **Known limitation**: the conversational text (what was discussed, decided) transfers verbatim. Old tool-call results inside the transcript reference the origin machine's absolute paths, which do not exist on the destination - so "continue the conversation" works, but reaching back into an old tool result does not.
 
 ---
 

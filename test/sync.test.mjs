@@ -27,6 +27,16 @@ test('every pair maps a local directory to a remote one', () => {
   }
 });
 
+test('the transcripts pair only exists when syncTranscripts is enabled', () => {
+  const off = syncPairs({ syncRoot: '/sync', machineId: 'macbook', syncTranscripts: false });
+  assert.ok(!off.some((p) => p.name === 'transcripts'), 'must be absent, not just empty - cost is zero');
+
+  const on = syncPairs({ syncRoot: '/sync', machineId: 'macbook', syncTranscripts: true });
+  const pair = on.find((p) => p.name === 'transcripts');
+  assert.ok(pair);
+  assert.ok(pair.remoteDir.startsWith('/sync'));
+});
+
 test('runSync executes end-to-end sync plan', async () => {
   const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-sync-run-'));
   const config = { syncRoot: tmpRoot, machineId: 'macbook', snapshotKeep: 5 };

@@ -11,7 +11,7 @@ trap 'rm -rf "$SB"' EXIT
 mkdir -p "$SB/home/.agent-sync" "$SB/drive" "$SB/proj"
 cat > "$SB/home/.agent-sync/config.json" <<EOF
 { "syncRoot": "$SB/drive", "machineId": "machine-a", "targets": ["claude"],
-  "syncTranscripts": false, "snapshotKeep": 20 }
+  "syncTranscripts": true, "snapshotKeep": 20 }
 EOF
 
 export HOME="$SB/home"
@@ -21,6 +21,9 @@ echo 'We chose Postgres over MySQL.' > "$SB/home/.claude/projects/$SLUG/memory/d
 echo '# demo skill' > "$SB/home/.claude/skills/demo/SKILL.md"
 printf '{"model":"opus","effortLevel":"xhigh","permissions":{"allow":["machine-local"]}}' \
   > "$SB/home/.claude/settings.json"
+# A real Claude Code session transcript, sitting where claude --resume looks.
+printf '{"role":"user","content":"where did we leave off?"}\n' \
+  > "$SB/home/.claude/projects/$SLUG/session-abc123.jsonl"
 
 echo "--- machine A: push ---"
 ( cd "$SB/proj" && node "$BIN" push )
@@ -33,11 +36,16 @@ grep -q '"model"' "$SB/drive/shared/settings-shared.json" || { echo "FAIL: setti
 grep -q 'machine-local' "$SB/drive/shared/settings-shared.json" \
   && { echo "FAIL: machine-local settings leaked to syncRoot"; exit 1; }
 
+echo "--- assert: the session transcript reached syncRoot, keyed by project id ---"
+ID_A="$(cat "$SB/proj/.claude-project-id")"
+test -f "$SB/drive/transcripts/$ID_A/session-abc123.jsonl" \
+  || { echo "FAIL: transcript never reached syncRoot"; exit 1; }
+
 echo "--- machine B: different path, no marker, fresh state ---"
 mkdir -p "$SB/home-b/.agent-sync" "$SB/elsewhere/dev/proj"
 cat > "$SB/home-b/.agent-sync/config.json" <<EOF
 { "syncRoot": "$SB/drive", "machineId": "machine-b", "targets": ["claude","codex"],
-  "syncTranscripts": false, "snapshotKeep": 20 }
+  "syncTranscripts": true, "snapshotKeep": 20 }
 EOF
 export HOME="$SB/home-b"
 OUT="$( cd "$SB/elsewhere/dev/proj" && node "$BIN" pull )"
@@ -57,6 +65,14 @@ test -f "$SB/home-b/.claude/projects/$SLUG_B/memory/db-choice.md" \
   || { echo "FAIL: memory did not reach machine B"; exit 1; }
 grep -q 'agent-sync:begin' "$SB/elsewhere/dev/proj/AGENTS.md" \
   || { echo "FAIL: AGENTS.md digest missing"; exit 1; }
+
+echo "--- assert: the SAME session is resumable on machine B, despite a different slug ---"
+[ "$SLUG" != "$SLUG_B" ] || { echo "FAIL: test is meaningless if both paths hash to the same slug"; exit 1; }
+test -f "$SB/home-b/.claude/projects/$SLUG_B/session-abc123.jsonl" \
+  || { echo "FAIL: transcript never reached machine B - claude --resume would not see it"; exit 1; }
+diff "$SB/home/.claude/projects/$SLUG/session-abc123.jsonl" \
+     "$SB/home-b/.claude/projects/$SLUG_B/session-abc123.jsonl" > /dev/null \
+  || { echo "FAIL: transcript content changed in transit"; exit 1; }
 
 echo "--- assert: repeated pulls stay clean and produce no litter ---"
 ( cd "$SB/elsewhere/dev/proj" && node "$BIN" pull > /dev/null )

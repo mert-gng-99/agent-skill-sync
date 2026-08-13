@@ -107,6 +107,13 @@ export async function applyAdapters({ config, projectId, cwd, dryRun }) {
     await claude.mergeSettings(shared);
   }
 
+  // Transcripts are Claude-specific and opt-in - not part of the generic
+  // digest/memory-dir writers above, so they get their own step here,
+  // mirroring collectFromTools's symmetric opt-in call below.
+  if (adapters.some((a) => a.id === 'claude') && config.syncTranscripts && !dryRun) {
+    await claude.distributeTranscripts({ projectId, cwd });
+  }
+
   return written;
 }
 
@@ -117,7 +124,7 @@ export async function applyAdapters({ config, projectId, cwd, dryRun }) {
  */
 export async function collectFromTools({ config, projectId, cwd }) {
   for (const adapter of selectAdapters(config.targets)) {
-    if (typeof adapter.collect === 'function') await adapter.collect({ projectId, cwd });
+    if (typeof adapter.collect === 'function') await adapter.collect({ projectId, cwd, config });
   }
 }
 
