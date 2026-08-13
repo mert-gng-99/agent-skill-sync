@@ -34,6 +34,9 @@ module.exports = {
     }),
     onDidChangeWindowState: () => disposable(),
     showInformationMessage: () => {},
+    showWarningMessage: () => {},
+    showErrorMessage: () => {},
+    showQuickPick: async () => undefined, // "user pressed Escape" by default
   },
   commands: {
     registerCommand: (id, handler) => {

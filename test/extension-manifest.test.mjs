@@ -72,6 +72,14 @@ test('the extension performs both halves of the round trip', () => {
   assert.match(source, /applyAdapters/);
 });
 
+test('the link command lets you pick a project instead of only showing a guess', () => {
+  // Previously this command only called showInformationMessage with the
+  // auto-resolved guess - no way to act on it if the guess was wrong.
+  const handler = source.slice(source.indexOf("registerCommand('agent-sync.link'"));
+  assert.match(handler, /showQuickPick/);
+  assert.match(handler, /linkProject/);
+});
+
 test('window blur triggers a sync, not only focus', () => {
   const handler = source.slice(source.indexOf('onDidChangeWindowState'));
   assert.ok(

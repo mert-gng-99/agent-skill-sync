@@ -78,6 +78,11 @@ code --install-extension agent-sync-0.1.0.vsix
 
 VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 
+**Komutlar** (`Cmd/Ctrl + Shift + P` → "agent-sync" ara):
+- `agent-sync: Sync now` — elle pull+push
+- `agent-sync: Run health checks` — `doctor` çıktısını Output panelinde gösterir
+- `agent-sync: Link this folder to a project` — bu klasörün şu an hangi projeye çözümlendiğini (ve nasıl eşleştiğini) gösterir, **ve bilinen projelerden birini seçmene veya yeni bir proje kimliği oluşturmana izin verir**. Otomatik eşleştirme yanlış çıktıysa (örn. jenerik bir klasör adı iki projeyle çakıştıysa) buradan düzeltirsin — CLI'daki `agent-sync link <id>`'in arayüzden karşılığı.
+
 **Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir — `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`); JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur — Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.
 
 ### 8. Bilinçli Sınırlar
@@ -170,6 +175,11 @@ code --install-extension agent-sync-0.1.0.vsix
 ```
 
 Restart VS Code; `agent-sync` then appears in the status bar.
+
+**Commands** (`Cmd/Ctrl + Shift + P` → search "agent-sync"):
+- `agent-sync: Sync now` - manual pull+push
+- `agent-sync: Run health checks` - shows `doctor` output in the Output panel
+- `agent-sync: Link this folder to a project` - shows which project this folder currently resolves to (and how), **and lets you pick a different known project or create a new one**. Use this when auto-matching guesses wrong (e.g. a generic folder name collides with two projects) - the UI equivalent of `agent-sync link <id>` on the CLI.
 
 **Settings** (`Cmd/Ctrl + ,` → search "agent-sync"): `syncRoot`, `machineId`, and `targets` can be edited directly there - no need to hand-edit `config.json`. `targets` is a pick-list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free-text JSON. Leaving a field untouched keeps whatever is already in `config.json` - the Settings UI only overrides fields you've actually changed.
 

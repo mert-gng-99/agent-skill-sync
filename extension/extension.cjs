@@ -16,7 +16,8 @@ function engine() {
       import('../src/adapters/index.mjs'),
       import('../src/project.mjs'),
       import('../src/doctor.mjs'),
-    ]).then(([config, sync, adapters, project, doctor]) => ({
+      import('../src/registry.mjs'),
+    ]).then(([config, sync, adapters, project, doctor, registry]) => ({
       DEFAULT_CONFIG: config.DEFAULT_CONFIG,
       validateConfig: config.validateConfig,
       loadConfig: config.loadConfig,
@@ -26,7 +27,9 @@ function engine() {
       applyAdapters: adapters.applyAdapters,
       collectFromTools: adapters.collectFromTools,
       ensureIdentity: project.ensureIdentity,
+      linkProject: project.linkProject,
       runDoctor: doctor.runDoctor,
+      loadRegistry: registry.loadRegistry,
     }));
   }
   return enginePromise;
@@ -192,15 +195,47 @@ async function activate(context) {
       }
       output.show();
     }),
+    // Shows the resolved project (like the old version) AND lets the user
+    // pick a different one from the registry, or start a fresh one - the
+    // command was named "Link this folder to a project" but used to only
+    // display a guess, with no way to act on it if the guess was wrong.
     vscode.commands.registerCommand('agent-sync.link', async () => {
       const cwd = workspaceRoot();
-      if (!cwd) return;
-      const { loadConfig, ensureIdentity } = await engine();
+      if (!cwd) {
+        vscode.window.showWarningMessage('agent-sync: open a folder first.');
+        return;
+      }
+      const { loadConfig, ensureIdentity, loadRegistry, linkProject } = await engine();
       const config = await loadConfig();
-      const identity = await ensureIdentity(config, cwd, { write: false });
-      vscode.window.showInformationMessage(
-        `This folder resolves to ${identity.id} (matched by ${identity.source}).`
-      );
+      const current = await ensureIdentity(config, cwd, { write: false });
+      const registry = await loadRegistry(config.syncRoot);
+
+      const createNew = { label: '$(add) Create a new project id for this folder', id: null };
+      const known = Object.entries(registry.projects).map(([id, p]) => ({
+        label: p.name,
+        description: id === current.id ? `${id} - current guess` : id,
+        id,
+      }));
+
+      const picked = await vscode.window.showQuickPick([createNew, ...known], {
+        placeHolder: current.id
+          ? `Currently resolves to ${current.id} (matched by ${current.source}) - pick a different project, or create new`
+          : 'No project matched yet - pick one, or create new',
+      });
+      if (!picked) return;
+
+      if (picked.id === null) {
+        const identity = await ensureIdentity(config, cwd, { write: true });
+        vscode.window.showInformationMessage(`Linked this folder to a new project: ${identity.id}`);
+      } else {
+        const code = await linkProject(config, cwd, picked.id);
+        if (code === 0) {
+          vscode.window.showInformationMessage(`Linked this folder to ${picked.id}.`);
+        } else {
+          vscode.window.showErrorMessage(`agent-sync: could not link to ${picked.id}.`);
+        }
+      }
+      sync({ silent: false, direction: 'both' });
     }),
     // Focus regained means another machine may have pushed since we last looked.
     // Focus lost is the moment to send up whatever this session produced.

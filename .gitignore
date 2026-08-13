@@ -8,3 +8,9 @@ extension/*.vsix
 
 # packaged extension artifact
 *.vsix
+
+# This repo is itself a synced "project" from our own dogfooding - these are
+# agent-sync's own generated output (skill mirrors, digest files), not tool
+# source. They must never be committed or shipped in the packaged extension.
+GEMINI.md
+.agents/

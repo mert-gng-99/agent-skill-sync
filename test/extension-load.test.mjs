@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import Module from 'node:module';
 import { createRequire } from 'node:module';
 import { useIsolatedHome } from './helpers/isolated-home.mjs';
@@ -88,4 +91,45 @@ test('an explicit false overrides the file - booleans have no "empty" to hide be
   // not be mistaken for "the user never touched this setting."
   const merged = extension.mergeVsCodeSettings({ syncTranscripts: true }, { syncTranscripts: false });
   assert.equal(merged.syncTranscripts, false);
+});
+
+test('picking a known project from the QuickPick actually links it, not just shows a guess', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-link-'));
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-link-root-'));
+  await fs.writeFile(
+    path.join(syncRoot, 'registry.json'),
+    JSON.stringify({
+      version: 1,
+      projects: { 'other-project-abc123': { name: 'other-project', paths: {} } },
+    })
+  );
+  const configDir = path.join(os.homedir(), '.agent-sync');
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(
+    path.join(configDir, 'config.json'),
+    JSON.stringify({
+      syncRoot,
+      machineId: 'test-machine',
+      targets: [],
+      syncTranscripts: false,
+      snapshotKeep: 20,
+    })
+  );
+
+  vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
+  // Simulates the user selecting the known project from the picker.
+  vscodeStub.window.showQuickPick = async (items) => items.find((i) => i.id === 'other-project-abc123');
+
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  const handler = vscodeStub.__registeredCommands
+    .filter((c) => c.id === 'agent-sync.link')
+    .at(-1).handler;
+  await handler();
+
+  const marker = await fs.readFile(path.join(cwd, '.claude-project-id'), 'utf8');
+  assert.equal(marker.trim(), 'other-project-abc123');
+
+  vscodeStub.workspace.workspaceFolders = undefined;
+  vscodeStub.window.showQuickPick = async () => undefined;
 });
