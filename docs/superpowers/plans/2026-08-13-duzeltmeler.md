@@ -483,3 +483,147 @@ git grep -niE "mertgungor|mert\.gng|mert\.protenis" -- src bin extension test
 ```
 
 Beklenen: hiç sonuç yok.
+
+---
+
+## Bulgu 6 (ÖNEMLİ) — Testler kullanıcının gerçek ev dizinine yazıyor
+
+**Durum:** Görev F doğru uygulandı, 98/98 test geçiyor. Ancak testlerin bir kısmı izole değil.
+
+### Belirti
+
+`npm test` çıktısında, sandbox olmayan gerçek bir yol siliniyor:
+
+```
+delete /var/folders/.../cs-sync-root-lFpJzA/shared/old.md      ← geçici, sorun yok
+delete /Users/<kullanıcı>/.agent-sync/staged/shared/old.md      ← GERÇEK EV DİZİNİ
+✔ forgetFile deletes targets in syncRoot and staged
+```
+
+Ve test koşulduktan sonra gerçek ev dizininde artıklar kalıyor:
+
+```
+~/.agent-sync/state.json
+~/.agent-sync/snapshots/2026-…-172Z/test-src/a.md
+~/.agent-sync/snapshots/2026-…-605Z/test-src/nested/b.md
+```
+
+### Etkilenen dosyalar
+
+`HOME`'u izole etmeden `homeDir()` / `stagedDir()` yoluna yazan testler:
+
+- `test/config.test.mjs`
+- `test/manifest.test.mjs`
+- `test/project.test.mjs`
+- `test/sync-engine.test.mjs`
+- `test/sync.test.mjs`
+
+Yazma yolları: `takeSnapshot` (snapshot dizini), `saveState` (`state.json`), `saveConfig` (`config.json`), `ensureIdentity` (staged hafıza), `forgetFile` (**silme**).
+
+### Neden önemli
+
+Araç henüz gerçekten kurulmadığı için şu an zarar kozmetik. Kurulduktan sonra:
+
+- **`state.json` eziliyor.** O dosya senkron motorunun karşılaştırma tabanıdır. Ezilirse bir sonraki sync her dosyayı "iki taraf da değişti" sanar → **toplu sahte çakışma**. Bulgu 1'in daha ağır hâli.
+- **Snapshot rotasyonu** (son 20 tutulur) kullanıcının gerçek yedeklerini test çöpüyle tahliye eder — geri alma imkânı kaybolur.
+- **`forgetFile` testi gerçek `staged/shared/old.md`'yi siler.** Silme, bu projede kasıtlı ve tek yönlü bir işlem; test onu tetiklememeli.
+
+`scripts/smoke-test.sh` bu sorundan etkilenmez, orada `HOME` zaten izole. Aynı disiplin birim testlerinde yok.
+
+---
+
+### Görev G: Birim testleri izole bir `HOME` içinde koşsun
+
+**Dosyalar:**
+- Create: `test/helpers/isolated-home.mjs`
+- Modify: `test/config.test.mjs`, `test/manifest.test.mjs`, `test/project.test.mjs`, `test/sync-engine.test.mjs`, `test/sync.test.mjs`
+
+- [ ] **Adım 1: Önce kirliliği gör (kanıt adımı)**
+
+```bash
+find ~/.agent-sync -type f 2>/dev/null | sort > /tmp/before.txt
+npm test > /dev/null 2>&1
+find ~/.agent-sync -type f 2>/dev/null | sort > /tmp/after.txt
+diff /tmp/before.txt /tmp/after.txt && echo "temiz" || echo "TESTLER GERÇEK EV DİZİNİNİ DEĞİŞTİRDİ"
+```
+
+`TESTLER GERÇEK EV DİZİNİNİ DEĞİŞTİRDİ` görmen gerekir. Görmeden devam etme — düzeltmenin işe yaradığını ancak buna karşı ölçebilirsin.
+
+- [ ] **Adım 2: Yardımcıyı yaz**
+
+`test/helpers/isolated-home.mjs`:
+
+```js
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+/**
+ * Points HOME at a throwaway directory for the lifetime of this test process.
+ * os.homedir() reads HOME on POSIX and USERPROFILE on Windows at call time, and
+ * every agent-sync path helper is lazy, so this redirects ~/.agent-sync into the
+ * sandbox. Without it, `npm test` overwrites the developer's real state.json and
+ * evicts their real snapshots.
+ *
+ * Call it at module top level, before any test runs. node --test gives each file
+ * its own process, so files cannot leak this into one another.
+ */
+export function useIsolatedHome() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sync-home-'));
+  process.env.HOME = dir;
+  process.env.USERPROFILE = dir;
+  return dir;
+}
+```
+
+- [ ] **Adım 3: Etkilenen beş test dosyasına uygula**
+
+Her birinde, import'ların hemen ardına ve ilk `test(...)` çağrısından önce:
+
+```js
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
+```
+
+Testlerin gövdesine dokunma — hangi yolu doğruladıkları değişmiyor, yalnızca hangi ev dizinine düştükleri değişiyor.
+
+- [ ] **Adım 4: Koruma testi ekle**
+
+`test/sync.test.mjs` içine (ya da uygun gördüğün bir dosyaya) ekle:
+
+```js
+test('the suite runs against an isolated home, never the real one', () => {
+  assert.match(process.env.HOME, /agent-sync-home-/);
+});
+```
+
+- [ ] **Adım 5: Doğrula**
+
+```bash
+npm test
+find ~/.agent-sync -type f 2>/dev/null | sort > /tmp/after2.txt
+diff /tmp/before.txt /tmp/after2.txt && echo "OK: gerçek ev dizinine dokunulmadı" || echo "HÂLÂ KİRLETİYOR"
+```
+
+Beklenen: `OK: gerçek ev dizinine dokunulmadı`, ve `npm test` 98 + 1 = 99 test.
+
+Ayrıca çıktıda artık `delete /Users/...` satırı **görünmemeli** — yalnızca geçici dizin yolları.
+
+- [ ] **Adım 6: Commit**
+
+```bash
+git add test/helpers/isolated-home.mjs test/*.test.mjs
+git commit -m "test: run the suite against an isolated HOME so it cannot touch real state"
+```
+
+### Bir de mevcut çöpü temizle
+
+Önceki test koşuları gerçek ev dizininde artık bıraktı. `~/.agent-sync/` içinde `config.json` **yoksa** araç hiç kurulmamış demektir ve içindekilerin tamamı test çöpüdür:
+
+```bash
+ls ~/.agent-sync/config.json 2>/dev/null && echo "DUR: araç kurulmuş, elle incele" \
+  || rm -rf ~/.agent-sync
+```
+
+`config.json` varsa **silme** — kullanıcının gerçek verisi olabilir, önce ona sor.
