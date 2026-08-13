@@ -326,3 +326,160 @@ Task'lar tek tek incelendi ama dalın tamamına bakan bir tur atılmadı. Yukar�
 - [ ] `git grep -niE "mertgungor|mert\.gng|mert\.protenis"` → kod ve dokümanlarda sonuç yok
 - [ ] `node -e "console.log(require('./package.json').dependencies)"` → `undefined` veya `{}`
 - [ ] `docs/superpowers/HANDOFF.md` içinde çelişkili ifade kalmadı
+
+---
+
+## Bulgu 5 (ÖNEMLİ — Görev A'nın yarattığı regresyon)
+
+**Durum:** Görev A ve B doğru uygulandı, smoke testi geçiyor. Ancak Görev A, `doctor`'ın 3. sağlık kontrolünü **sessizce öldürdü.**
+
+### Belirti
+
+Yerelde gerçek bir çakışma artığı dururken `doctor` "sorun yok" diyor:
+
+```
+$ ls ~/.agent-sync/staged/shared/
+settings-shared.conflict-macbook-20260813-0642.json     ← artık burada DURUYOR
+
+$ agent-sync doctor
+OK    unresolved sync conflicts: none                   ← ama görmüyor
+```
+
+### Kök neden
+
+`src/doctor.mjs` içindeki 3. kontrol, çakışma dosyalarını **`syncRoot`'ta** arıyor:
+
+```js
+const remote = await collectManifest(syncRoot);
+const names = [...remote.keys()];
+...
+const ours = names.filter((n) => n.includes('.conflict-'));
+```
+
+Görev A'dan önce bu çalışıyordu, çünkü çakışma artıkları (hatalı biçimde) `syncRoot`'a push ediliyordu. Görev A onları doğru şekilde yerelde tuttu — ve bu kontrol de aynı anda kör kaldı.
+
+**Bu neden önemli:** kullanıcı bulut klasörünü bilerek seçti ve tek şartı çakışmaların *sessizce kaybolmaması*ydı. `doctor`'ın bu kontrolü o şartın tek garantisi. Şu hâliyle garanti yok.
+
+**Neden kaçtı:** `doctor` için hiç test yok. `test/` altında `doctor.test.mjs` bulunmuyor.
+
+---
+
+### Görev F: `doctor` çakışmaları yerel ağaçlarda arasın + testi yazılsın
+
+**Dosyalar:**
+- Modify: `src/doctor.mjs`
+- Test: `test/doctor.test.mjs` (yeni dosya)
+
+- [ ] **Adım 1: Düşen testi yaz**
+
+`test/doctor.test.mjs`:
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { runDoctor } from '../src/doctor.mjs';
+
+async function fixture() {
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), 'as-doctor-'));
+  const syncRoot = path.join(base, 'drive');
+  const local = path.join(base, 'staged-shared');
+  await fs.mkdir(syncRoot, { recursive: true });
+  await fs.mkdir(local, { recursive: true });
+  return { syncRoot, local };
+}
+
+function conflictCheck(checks) {
+  return checks.find((c) => c.name === 'unresolved sync conflicts');
+}
+
+test('doctor finds conflict copies in the local trees, where they now live', async () => {
+  const { syncRoot, local } = await fixture();
+  await fs.writeFile(path.join(local, 'settings-shared.conflict-pc-20260813-0642.json'), '{}');
+
+  const check = conflictCheck(await runDoctor({ syncRoot, localRoots: [{ dir: local }] }));
+  assert.equal(check.status, 'warn');
+  assert.match(check.details, /conflict-pc/);
+});
+
+test('doctor reports none when the local trees are clean', async () => {
+  const { syncRoot, local } = await fixture();
+  await fs.writeFile(path.join(local, 'settings-shared.json'), '{}');
+
+  const check = conflictCheck(await runDoctor({ syncRoot, localRoots: [{ dir: local }] }));
+  assert.equal(check.status, 'ok');
+  assert.equal(check.details, 'none');
+});
+```
+
+- [ ] **Adım 2: Testi çalıştır, düştüğünü gör**
+
+`node --test test/doctor.test.mjs` → ilk test düşmeli: `status` `'ok'` gelir ama `'warn'` beklenir. **Bu düşüş, regresyonun kanıtıdır.** Görmeden devam etme.
+
+- [ ] **Adım 3: Düzelt**
+
+`src/doctor.mjs` — import ekle:
+
+```js
+import { isConflictArtifact } from './apply.mjs';
+```
+
+3. kontrolü yerel ağaçları tarayacak şekilde değiştir (`localRoots` fonksiyona zaten geliyor, sır taraması için kullanılıyor):
+
+```js
+  // 3. Our own conflict files awaiting resolution. These are local by design -
+  // they are never pushed to syncRoot - so the local trees are where to look.
+  const ours = [];
+  for (const { dir } of localRoots) {
+    for (const rel of (await collectManifest(dir)).keys()) {
+      if (isConflictArtifact(rel)) ours.push(rel);
+    }
+  }
+  checks.push({
+    name: 'unresolved sync conflicts',
+    status: ours.length ? WARN : OK,
+    details: ours.join(', ') || 'none',
+  });
+```
+
+2. kontrole (bulut sağlayıcı artıkları) **dokunma** — o gerçekten `syncRoot`'a bakmalı, çünkü o dosyaları Drive/Dropbox orada üretir.
+
+- [ ] **Adım 4: Testleri çalıştır**
+
+`npm test` → 96 + 2 = 98 test geçmeli.
+
+- [ ] **Adım 5: Elle doğrula**
+
+```bash
+SB=$(mktemp -d); mkdir -p "$SB/home/.agent-sync/staged/shared" "$SB/drive" "$SB/proj"
+cat > "$SB/home/.agent-sync/config.json" <<EOF
+{ "syncRoot": "$SB/drive", "machineId": "macbook", "targets": [],
+  "syncTranscripts": false, "snapshotKeep": 20 }
+EOF
+echo '{}' > "$SB/home/.agent-sync/staged/shared/settings-shared.conflict-macbook-20260813-0642.json"
+( export HOME="$SB/home"; cd "$SB/proj" && node "$OLDPWD/bin/agent-sync.mjs" doctor )
+rm -rf "$SB"
+```
+
+Beklenen: `WARN  unresolved sync conflicts: shared/settings-shared.conflict-macbook-...`
+
+- [ ] **Adım 6: Commit**
+
+```bash
+git add src/doctor.mjs test/doctor.test.mjs
+git commit -m "fix: look for conflict copies in the local trees, where they now live"
+```
+
+---
+
+## Not: kontrol listesindeki yanlış pozitif
+
+Bitirme listesindeki `git grep -niE "mertgungor|..."` komutu **kendi kendini buluyor** — desen bu belgenin içinde geçtiği için her zaman bir sonuç döner. Tek eşleşme bu satırsa sorun yoktur. Kodda gerçek sızıntı olup olmadığını şöyle bak:
+
+```bash
+git grep -niE "mertgungor|mert\.gng|mert\.protenis" -- src bin extension test
+```
+
+Beklenen: hiç sonuç yok.
