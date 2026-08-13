@@ -49,10 +49,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 15 | Dağıtım paketi | `README.md`, `LICENSE` | ✅ **Tamamlandı** |
 | 16 | VS Code extension kabuğu | `extension/*` | ✅ **Tamamlandı** |
 
-
-**Task 1 neden "tamamlandı" değil:** kod yazıldı ve testleri geçiyor, ama bağımsız bir gözden geçirmeden geçmedi. Bu projede bir task, review'dan temiz dönene kadar bitmiş sayılmaz.
-
-**Sıradaki ilk iş Task 2 değil — Task 1'in review'ıdır.** (Bkz. bölüm 4.)
+Tüm 16 task implemente edildi. Açık iş: `docs/superpowers/plans/2026-08-13-duzeltmeler.md`.
 
 ---
 
@@ -101,7 +98,7 @@ Bulgu çıkarsa düzelt, düzeltmeyi kapsayan testi yeniden çalıştır, sonra 
 
 O zaman bu döngüyü otomatikleştiren bir akış var. Şunu yaz:
 
-> `superpowers:subagent-driven-development` ile `docs/superpowers/plans/2026-08-12-agent-sync.md` planını yürüt. Task 1 yazıldı ama review edilmedi (commit `b70feb3`, BASE `54115f7`) — önce onun review'ıyla başla, sonra Task 2'den devam et.
+> `superpowers:subagent-driven-development` ile `docs/superpowers/plans/2026-08-13-duzeltmeler.md` planını yürüt.
 
 Superpowers yoksa bölüm 4'ün başındaki manuel döngü zaten yeterlidir; eksik bir şey olmaz, sadece elle yaparsın.
 
