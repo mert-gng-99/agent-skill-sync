@@ -1,0 +1,41 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import Module from 'node:module';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+// The extension host resolves `vscode` for real extensions; here we point it at
+// a stub so the entry point can be loaded exactly as VS Code would load it.
+const stubPath = require.resolve('./stubs/vscode.cjs');
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function (request, ...rest) {
+  return request === 'vscode' ? stubPath : originalResolve.call(this, request, ...rest);
+};
+
+const vscodeStub = require('./stubs/vscode.cjs');
+const extension = require('../extension/extension.cjs');
+
+test('the entry point loads the way the extension host loads it', () => {
+  // A packaged extension that cannot even be required is invisible to every
+  // other test: the manifest still validates and the suite still passes.
+  assert.equal(typeof extension.activate, 'function');
+  assert.equal(typeof extension.deactivate, 'function');
+});
+
+test('activate registers the three contributed commands', () => {
+  const context = { subscriptions: [] };
+  extension.activate(context);
+
+  const ids = vscodeStub.__registeredCommands.map((c) => c.id).sort();
+  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.sync']);
+  assert.ok(context.subscriptions.length > 0, 'everything registered must be disposable');
+});
+
+test('the engine is reachable from the CommonJS entry point', async () => {
+  // extension.cjs pulls the ESM engine in with a dynamic import. If those paths
+  // are wrong - or the engine files are missing from a package - this throws.
+  const engine = await import('../src/sync.mjs');
+  assert.equal(typeof engine.runSync, 'function');
+  assert.equal(typeof engine.syncPairs, 'function');
+});

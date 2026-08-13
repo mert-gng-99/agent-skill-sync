@@ -1,10 +1,42 @@
 {
   "name": "agent-sync",
+  "displayName": "agent-sync",
   "version": "0.1.0",
   "description": "Sync coding-agent skills, memory and settings across machines and tools - path independent",
   "type": "module",
   "bin": { "agent-sync": "bin/agent-sync.mjs" },
-  "engines": { "node": ">=20" },
+  "main": "extension/extension.cjs",
+  "engines": { "node": ">=20", "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      { "command": "agent-sync.sync", "title": "agent-sync: Sync now" },
+      { "command": "agent-sync.doctor", "title": "agent-sync: Run health checks" },
+      { "command": "agent-sync.link", "title": "agent-sync: Link this folder to a project" }
+    ],
+    "configuration": {
+      "title": "agent-sync",
+      "properties": {
+        "agent-sync.syncRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Folder shared between your machines (Drive, OneDrive, Dropbox, Syncthing)."
+        },
+        "agent-sync.machineId": {
+          "type": "string",
+          "default": "",
+          "description": "Short name for this machine. Used in conflict filenames."
+        },
+        "agent-sync.targets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Which agents to write context for."
+        }
+      }
+    }
+  },
   "scripts": { "test": "node --test 'test/**/*.test.mjs'" },
   "license": "MIT"
 }

@@ -1,0 +1,10 @@
+docs/**
+test/**
+scripts/**
+.superpowers/**
+.github/**
+*.vsix
+.gitignore
+.vscodeignore
+AGENTS.md
+CLAUDE.md
