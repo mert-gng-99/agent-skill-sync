@@ -2,3 +2,6 @@ config.json
 state.json
 node_modules/
 .DS_Store
+.claude-project-id
+extension/out/
+extension/*.vsix

@@ -24,7 +24,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 14 |
+| Tamamlanan | 15 |
 | Yazılan ama review edilmeyen | **0** |
 | Test durumu | 90/90 geçiyor, çıktı temiz |
 
@@ -46,7 +46,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 12 | Adapter katmanı (6 araç) | `src/adapters/*.mjs` | ✅ **Tamamlandı** |
 | 13 | `run` sarmalayıcısı | `src/run.mjs` | ✅ **Tamamlandı** |
 | 14 | Etkileşimli kurulum ve CLI kabuğu | `src/init.mjs`, `bin/agent-sync.mjs` | ✅ **Tamamlandı** |
-| 15 | Dağıtım paketi | `README.md`, `LICENSE` | ⬜ |
+| 15 | Dağıtım paketi | `README.md`, `LICENSE` | ✅ **Tamamlandı** |
 | 16 | VS Code extension kabuğu | `extension/*` | ⬜ |
 
 
