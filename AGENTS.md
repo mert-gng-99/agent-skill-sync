@@ -4,6 +4,14 @@
 
 Orada projenin ne olduğu, hangi task'ın bitip hangisinin kaldığı, nasıl devam edileceği ve daha önce verilmiş kararlar yazılı. Tek başına yeterlidir — kullanıcıya baştan anlattırma.
 
+## 🔴 Şu anki açık iş
+
+16 task'ın tamamı implemente edildi (94/94 test geçiyor), ancak bağımsız doğrulamada bir davranış hatası bulundu.
+
+**Yapılacaklar burada: [`docs/superpowers/plans/2026-08-13-duzeltmeler.md`](docs/superpowers/plans/2026-08-13-duzeltmeler.md)**
+
+5 görev (A–E): sahte çakışma hatasının iki ayağı, devir teslim notundaki çelişki, uçtan uca smoke testi ve final review. Her görevde ne yapılacağı, kodun tamamı ve testleri yazılı.
+
 ## 30 saniyelik özet
 
 `agent-sync`, kodlama ajanlarının skill'lerini, hafızasını ve ayarlarını hem **makineler** (1 macOS + 2 Windows) hem **araçlar** (Claude Code, Codex, OpenCode, Gemini, Aider, Cursor) arasında senkronize eden, bağımlılıksız bir Node CLI aracıdır. Dosya yolu makineden makineye değişse bile aynı projeyi tanır.
