@@ -133,3 +133,52 @@ test('picking a known project from the QuickPick actually links it, not just sho
   vscodeStub.workspace.workspaceFolders = undefined;
   vscodeStub.window.showQuickPick = async () => undefined;
 });
+
+async function seedConfig(syncRoot) {
+  const configDir = path.join(os.homedir(), '.agent-sync');
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(
+    path.join(configDir, 'config.json'),
+    JSON.stringify({
+      syncRoot,
+      machineId: 'test-machine',
+      targets: [],
+      syncTranscripts: false,
+      snapshotKeep: 20,
+    })
+  );
+}
+
+test('automatic triggers never turn an unlinked folder into a new project', async () => {
+  // Reproduces a real incident: Desktop (a container of unrelated projects,
+  // not a project itself) was open as the workspace, and startup/focus sync
+  // silently wrote a marker and AGENTS.md straight into it.
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-noauto-'));
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-noauto-root-'));
+  await seedConfig(syncRoot);
+
+  vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
+  const context = { subscriptions: [] };
+  await extension.activate(context); // fires an un-awaited requireExisting:true sync internally
+  await extension.deactivate(); // this one we can await directly - same guard
+
+  await assert.rejects(() => fs.readFile(path.join(cwd, '.claude-project-id')));
+
+  vscodeStub.workspace.workspaceFolders = undefined;
+});
+
+test('the explicit "Sync now" command is still allowed to create a new project', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-explicit-'));
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-explicit-root-'));
+  await seedConfig(syncRoot);
+
+  vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  const handler = vscodeStub.__registeredCommands.filter((c) => c.id === 'agent-sync.sync').at(-1).handler;
+  await handler();
+
+  await fs.readFile(path.join(cwd, '.claude-project-id'), 'utf8'); // must now exist
+
+  vscodeStub.workspace.workspaceFolders = undefined;
+});

@@ -28,6 +28,7 @@ function engine() {
       collectFromTools: adapters.collectFromTools,
       ensureIdentity: project.ensureIdentity,
       linkProject: project.linkProject,
+      readMarker: project.readMarker,
       runDoctor: doctor.runDoctor,
       loadRegistry: registry.loadRegistry,
     }));
@@ -98,10 +99,20 @@ function workspaceRoot() {
  *   'in'   - bring remote changes down and write them into the tools
  *   'out'  - read what the tools authored and send it up
  *   'both' - the manual command; do the full round trip
+ *
+ * `requireExisting` guards against silently turning whatever folder happens
+ * to be the open workspace into a brand-new synced "project". Automatic
+ * triggers (startup, focus change, a settings edit) run with this on: if the
+ * folder has no marker yet, they do nothing rather than create one - a
+ * workspace root is often a container folder (Desktop, home) opened for
+ * unrelated reasons, not something the user meant to link. Creating a new
+ * project is only ever allowed from an explicit action: the "Sync now" and
+ * "Link this folder to a project" commands, both requested by a real click.
+ *
  * Never throws into VS Code - failures surface in the status bar and the
  * output channel, they do not interrupt the user.
  */
-async function sync({ silent, direction = 'both' }) {
+async function sync({ silent, direction = 'both', requireExisting = false }) {
   const cwd = workspaceRoot();
   if (!cwd) {
     // Without an open folder there is no project to resolve. Say so instead of
@@ -114,9 +125,18 @@ async function sync({ silent, direction = 'both' }) {
     return;
   }
   try {
-    const { loadConfig, runSync, applyAdapters, collectFromTools, ensureIdentity } =
+    const { loadConfig, runSync, applyAdapters, collectFromTools, ensureIdentity, readMarker } =
       await engine();
     const config = await loadConfig();
+
+    if (requireExisting && !(await readMarker(cwd))) {
+      statusItem.text = '$(circle-slash) agent-sync: not linked';
+      statusItem.tooltip =
+        'This folder is not linked to a project yet. Run "agent-sync: Sync now" or ' +
+        '"agent-sync: Link this folder to a project" to set it up.';
+      return;
+    }
+
     const identity = await ensureIdentity(config, cwd);
 
     if (!identity.id) {
@@ -149,7 +169,16 @@ async function sync({ silent, direction = 'both' }) {
     for (const b of blocked) {
       output.appendLine(`Withheld ${b.pair}/${b.relPath} - looks like a secret. Not pushed.`);
     }
-    if (!silent) output.appendLine(`Synced ${plan.length} change(s) for ${identity.id}`);
+    if (!silent) {
+      output.appendLine(`Synced ${plan.length} change(s) for ${identity.id}`);
+      // A button click that produces no visible response reads as broken -
+      // the tooltip already has this, but a tooltip only shows on hover.
+      vscode.window.showInformationMessage(
+        problems
+          ? `agent-sync: synced with ${problems} issue(s) - see the Output panel.`
+          : `agent-sync: ${plan.length} change(s) synced for ${identity.id}.`
+      );
+    }
   } catch (err) {
     // Nothing configured yet is the common first-run case, not a failure.
     // Tell the user how to fix it rather than logging into a hidden channel.
@@ -240,23 +269,23 @@ async function activate(context) {
     // Focus regained means another machine may have pushed since we last looked.
     // Focus lost is the moment to send up whatever this session produced.
     vscode.window.onDidChangeWindowState((s) => {
-      sync({ silent: true, direction: s.focused ? 'in' : 'out' });
+      sync({ silent: true, direction: s.focused ? 'in' : 'out', requireExisting: true });
     }),
     // The Settings UI is the point of this listener: a change there should
     // reach config.json (and the next sync) without reloading the window.
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (!e.affectsConfiguration('agent-sync')) return;
       await applyVsCodeSettings();
-      sync({ silent: true, direction: 'both' });
+      sync({ silent: true, direction: 'both', requireExisting: true });
     })
   );
 
   await applyVsCodeSettings();
-  sync({ silent: true, direction: 'in' });
+  sync({ silent: true, direction: 'in', requireExisting: true });
 }
 
 function deactivate() {
-  return sync({ silent: true, direction: 'out' });
+  return sync({ silent: true, direction: 'out', requireExisting: true });
 }
 
 module.exports = { activate, deactivate, mergeVsCodeSettings };
