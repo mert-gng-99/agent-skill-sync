@@ -8,7 +8,7 @@ import { ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
 import { runWrapped } from '../src/run.mjs';
 
-const HELP = `agent-sync <command> [--dry-run]
+const HELP = `agent-sync <command> [--dry-run] [--force]
 
   init                 Set up this machine: config, sync root, tool targets
   pull | push          Synchronise skills, memory and shared settings
@@ -17,6 +17,8 @@ const HELP = `agent-sync <command> [--dry-run]
   link <project-id>    Bind the current directory to an existing project
   forget <path>        Delete a file locally and remotely on purpose
   run <command...>     Pull, run the command, then push when it exits
+
+  --force              Push files even when they look like they contain secrets
 `;
 
 // Hooks and the VS Code extension call this binary. It must never take a
@@ -26,7 +28,8 @@ const HOOK_SAFE = new Set(['pull', 'push']);
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const dryRun = rest.includes('--dry-run');
-  const args = rest.filter((a) => a !== '--dry-run');
+  const force = rest.includes('--force');
+  const args = rest.filter((a) => a !== '--dry-run' && a !== '--force');
 
   if (!command || command === 'help' || command === '--help') {
     process.stdout.write(HELP);
@@ -46,7 +49,7 @@ async function main() {
       if (command === 'push' && !dryRun) {
         await collectFromTools({ config, projectId: identity.id, cwd: process.cwd() });
       }
-      const { plan, conflicts } = await runSync({ config, dryRun });
+      const { plan, conflicts, blocked } = await runSync({ config, dryRun, force });
       const prefix = dryRun ? '[dry-run] ' : '';
       for (const item of plan) {
         process.stdout.write(`${prefix}${item.action.padEnd(8)} ${item.pair}/${item.relPath}\n`);
@@ -64,6 +67,13 @@ async function main() {
       }
       for (const c of conflicts) {
         process.stdout.write(`conflict: ${c.pair}/${c.relPath} - your version kept as ${c.keptAs}\n`);
+      }
+      for (const b of blocked) {
+        const where = b.findings.map((f) => `${f.kind} at line ${f.line}`).join(', ');
+        process.stderr.write(
+          `blocked  ${b.pair}/${b.relPath} - looks like a secret (${where}); ` +
+            `kept local, not pushed. Re-run with --force to send it anyway.\n`
+        );
       }
       return 0;
     }

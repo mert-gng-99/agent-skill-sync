@@ -1,10 +1,12 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { stagedDir, stagedSkillsDir, stagedSharedDir } from './paths.mjs';
 import { collectManifest } from './manifest.mjs';
-import { buildPlan } from './sync-engine.mjs';
+import { ACTION, buildPlan } from './sync-engine.mjs';
 import { applyPlan, isConflictArtifact } from './apply.mjs';
 import { loadState, saveState } from './state.mjs';
 import { takeSnapshot } from './snapshot.mjs';
+import { scanForSecrets } from './secrets.mjs';
 
 /** Keeps conflict copies out of the sync entirely - see isConflictArtifact. */
 export function withoutConflictArtifacts(manifest) {
@@ -13,6 +15,33 @@ export function withoutConflictArtifacts(manifest) {
     if (!isConflictArtifact(rel)) out.set(rel, hash);
   }
   return out;
+}
+
+/**
+ * Files heading out to syncRoot are the point of no return: once a credential
+ * reaches a cloud folder it is replicated to every machine and kept in that
+ * provider's version history, so a warning printed afterwards protects nothing.
+ * Scan PUSH candidates here and withhold the ones that look like they carry
+ * secrets. Nothing is destroyed - the file stays local and is reported - and
+ * `force` sends it anyway when the match is a false positive.
+ * Inbound files are not scanned: they are already shared, and blocking them
+ * would only break the sync.
+ */
+async function withholdSecrets(plan, localDir, force) {
+  if (force) return { safe: plan, blocked: [] };
+  const safe = [];
+  const blocked = [];
+  for (const item of plan) {
+    if (item.action !== ACTION.PUSH) {
+      safe.push(item);
+      continue;
+    }
+    const abs = path.join(localDir, ...item.relPath.split('/'));
+    const findings = scanForSecrets(await fs.readFile(abs, 'utf8').catch(() => ''));
+    if (findings.length) blocked.push({ relPath: item.relPath, findings });
+    else safe.push(item);
+  }
+  return { safe, blocked };
 }
 
 /**
@@ -38,9 +67,10 @@ export function syncPairs(config) {
   ];
 }
 
-export async function runSync({ config, dryRun }) {
+export async function runSync({ config, dryRun, force = false }) {
   const state = await loadState();
   const allConflicts = [];
+  const allBlocked = [];
   const fullPlan = [];
 
   if (!dryRun) {
@@ -55,8 +85,9 @@ export async function runSync({ config, dryRun }) {
     const remote = withoutConflictArtifacts(await collectManifest(pair.remoteDir));
     const base = state.files[pair.name] ?? {};
     const plan = buildPlan(local, remote, base);
+    const { safe, blocked } = await withholdSecrets(plan, pair.localDir, force);
 
-    const { applied, conflicts } = await applyPlan(plan, {
+    const { applied, conflicts } = await applyPlan(safe, {
       localRoot: pair.localDir,
       remoteRoot: pair.remoteDir,
       machineId: config.machineId,
@@ -71,10 +102,11 @@ export async function runSync({ config, dryRun }) {
       state.files[pair.name] = nextBase;
     }
 
-    fullPlan.push(...plan.map((p) => ({ ...p, pair: pair.name })));
+    fullPlan.push(...safe.map((p) => ({ ...p, pair: pair.name })));
     allConflicts.push(...conflicts.map((c) => ({ ...c, pair: pair.name })));
+    allBlocked.push(...blocked.map((b) => ({ ...b, pair: pair.name })));
   }
 
   if (!dryRun) await saveState(state);
-  return { plan: fullPlan, conflicts: allConflicts };
+  return { plan: fullPlan, conflicts: allConflicts, blocked: allBlocked };
 }

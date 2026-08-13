@@ -31,7 +31,7 @@
    - Uçtan uca smoke testi: `./scripts/smoke-test.sh` (izole geçici bir `HOME` dizininde çalıştığından gerçek bilgisayarınızdaki dizinlere dokunmaz).
 
 ### 4. Komutlar
-`node bin/agent-sync.mjs <command>` (veya `npm link` ile `agent-sync <command>`):
+`node bin/agent-sync.mjs <command> [--force]` (veya `npm link` ile `agent-sync <command>`):
 
 | Komut | Açıklama |
 |---|---|
@@ -42,6 +42,7 @@
 | `link <project-id>` | Mevcut çalışma dizinini var olan bir proje kimliğine bağlar |
 | `forget <path>` | Bir dosyayı hem yerel hem de uzak depodan bilinçli olarak siler |
 | `run <command...>` | Komut öncesi pull yapar, komutu çalıştırır, çıkışta push yapar |
+| `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
 
 ### 5. Desteklenen Araçlar
 
@@ -70,7 +71,7 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
 - **Silme yayılmaz**: Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
 - **Tetikleme**: Senkronizasyon anlık streaming değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.
 - **Skill'ler**: Yalnızca Claude Code üzerinde otomatik araç/skill olarak tetiklenir; diğer araçlarda okunabilir metin olarak erişilebilir durumdadır.
-- **Sır Güvenliği**: Notlar makine dışına çıkmadan önce `doctor` otomatik olarak API anahtarları ve şifre taraması yapar.
+- **Sır Güvenliği**: Dışarı çıkacak (`push`) dosyalarda API anahtarları/şifreler taranır. Şüpheli dosyalar **push edilmez, yerelde kalır** ve raporlanır. Yanlış pozitif durumlarında `--force` parametresiyle push zorlanabilir. Gelen (`pull`) dosyalar taranmaz.
 
 ---
 
@@ -101,7 +102,7 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
    - End-to-end smoke test: `./scripts/smoke-test.sh` (runs entirely inside an isolated temporary `$HOME`, making it completely safe and non-destructive to your real `~/.claude` and `~/.agent-sync` environments).
 
 ### 4. CLI Commands
-`node bin/agent-sync.mjs <command>` (or `agent-sync <command>`):
+`node bin/agent-sync.mjs <command> [--force]` (or `agent-sync <command>`):
 
 | Command | Description |
 |---|---|
@@ -112,6 +113,7 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
 | `link <project-id>` | Manually bind current working directory to an existing project ID |
 | `forget <path>` | Purge a file locally and remotely intentionally |
 | `run <command...>` | Pull before command execution, run command, push on exit |
+| `--force` | Force push files even when they look like they contain secrets |
 
 ### 5. Supported Tools
 
@@ -138,8 +140,7 @@ The extension in `extension/` triggers synchronization automatically on window f
 
 ### 8. Design Constraints
 - **Deletions do not propagate**: Absent files are restored from remote. Use `agent-sync forget <path>` for intentional deletions.
-- **Secret Scanning**: `doctor` scans outgoing memory for API keys, passwords, and tokens before files leave the machine.
-- **Skills**: Auto-triggered in Claude Code; presented as plain context in other tools.
+- **Secret Protection**: Outbound files (`push`) are scanned for API keys and passwords. Suspected files are **withheld from the push and kept locally**. Use the `--force` flag to override false positives. Inbound files (`pull`) are not blocked.
 
 ---
 
