@@ -1,8 +1,21 @@
-# Kaldığımız yer — 2026-08-12
+# Kaldığımız yer — son güncelleme 2026-08-13
 
-## Durum: plan hazır, kod yazılmadı
+## Durum: Task 1 yazıldı, review bekliyor (15 task kaldı)
 
-Hiçbir implementer görevlendirilmedi, yani **yarım kalmış iş yok**. Temiz bir noktadayız: tasarım ve plan onaylandı ve commit edildi, sıra ilk task'ı yürütmeye gelmişti.
+Tasarım ve plan onaylandı, yürütme başladı.
+
+- **Task 1 (`src/paths.mjs` + `package.json`): implemente edildi**, commit `b70feb3`, 4/4 test geçiyor.
+- **Ama review edilmedi.** SDD akışında bir task, task reviewer'dan temiz dönene kadar "complete" sayılmaz.
+
+**Devam ederken ilk iş — Task 2 değil, Task 1'in review'ı:**
+
+```
+scripts/review-package docs/superpowers/plans/2026-08-12-agent-sync.md 54115f7 b70feb3
+```
+
+Sonra task-reviewer görevlendirilir. Temiz dönerse ledger'a `Task 1: complete` düşülür ve Task 2'ye geçilir. Bulgu çıkarsa fix turu için implementer agent'ı `a96d76ab07c7e5a0c` resume edilir.
+
+Ledger: `.superpowers/sdd/2026-08-12-agent-sync/progress.md` (git'e girmez).
 
 ## Ne var elimizde
 
