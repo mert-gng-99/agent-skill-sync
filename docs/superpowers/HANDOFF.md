@@ -24,16 +24,16 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 1 |
+| Tamamlanan | 2 |
 | Yazılan ama review edilmeyen | **0** |
-| Test durumu | 5/5 geçiyor, çıktı temiz |
+| Test durumu | 12/12 geçiyor, çıktı temiz |
 
 ### Task durumları
 
 | # | Task | Dosyalar | Durum |
 |---|---|---|---|
 | 1 | Proje iskeleti ve yol/slug modülü | `package.json`, `src/paths.mjs` | ✅ **Tamamlandı** |
-| 2 | Config modülü (`targets` dahil) | `src/config.mjs` | ⬜ |
+| 2 | Config modülü (`targets` dahil) | `src/config.mjs` | ✅ **Tamamlandı** |
 | 3 | Senkron karar motoru (saf) | `src/state.mjs`, `src/sync-engine.mjs` | ⬜ |
 | 4 | Manifest tarayıcı ve snapshot | `src/manifest.mjs`, `src/snapshot.mjs` | ⬜ |
 | 5 | Uygulama katmanı (çakışma yönetimi) | `src/apply.mjs` | ⬜ |
