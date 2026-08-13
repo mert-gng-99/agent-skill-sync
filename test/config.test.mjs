@@ -4,6 +4,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { DEFAULT_CONFIG, validateConfig, configPath, loadConfig, saveConfig } from '../src/config.mjs';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
 
 test('defaults keep transcripts off and retain 20 snapshots', () => {
   assert.equal(DEFAULT_CONFIG.syncTranscripts, false);

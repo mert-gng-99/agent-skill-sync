@@ -4,6 +4,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { readMarker, readGitRemote, addToGitExclude, ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
 
 test('reads and trims a marker file', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-proj-'));

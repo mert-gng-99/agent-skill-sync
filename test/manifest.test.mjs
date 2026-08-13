@@ -5,6 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { collectManifest, IGNORED_NAMES } from '../src/manifest.mjs';
 import { takeSnapshot } from '../src/snapshot.mjs';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
 
 async function fixture() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-manifest-'));

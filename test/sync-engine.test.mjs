@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACTION, decide, buildPlan } from '../src/sync-engine.mjs';
 import { hashContent, statePath, loadState, saveState } from '../src/state.mjs';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
 
 test('identical sides do nothing', () => {
   assert.equal(decide({ localHash: 'a', remoteHash: 'a', baseHash: 'a' }), ACTION.SKIP);

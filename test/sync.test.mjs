@@ -5,6 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { syncPairs, runSync, withoutConflictArtifacts } from '../src/sync.mjs';
 import { isConflictArtifact } from '../src/apply.mjs';
+import { useIsolatedHome } from './helpers/isolated-home.mjs';
+
+useIsolatedHome();
+
+test('the suite runs against an isolated home, never the real one', () => {
+  assert.match(process.env.HOME, /agent-sync-home-/);
+});
 
 test('pairs cover skills, global memory and shared docs', () => {
   const pairs = syncPairs({ syncRoot: '/sync', machineId: 'macbook' });
