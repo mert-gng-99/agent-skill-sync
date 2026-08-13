@@ -23,10 +23,10 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | | |
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
-| Toplam task | 16 |
-| Tamamlanan | 16 |
-| Yazılan ama review edilmeyen | **0** |
-| Test durumu | 94/94 geçiyor, çıktı temiz |
+| Toplam task | 16 + düzeltme görevleri A–I |
+| Tamamlanan | hepsi |
+| Test durumu | 110/110 geçiyor, smoke testi geçiyor, çıktı temiz |
+| VSIX | paketleniyor, açılıyor, activate() çalışıyor |
 
 ### Task durumları
 
@@ -49,7 +49,16 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 15 | Dağıtım paketi | `README.md`, `LICENSE` | ✅ **Tamamlandı** |
 | 16 | VS Code extension kabuğu | `extension/*` | ✅ **Tamamlandı** |
 
-Tüm 16 task implemente edildi. Açık iş: `docs/superpowers/plans/2026-08-13-duzeltmeler.md`.
+Tüm task'lar ve tüm düzeltme görevleri (A–I) tamamlandı ve bağımsız olarak doğrulandı.
+
+**Kalan tek iş elle yapılacak:** eklentiyi kendi VS Code'unda kurup gerçek ortamda gör.
+
+```bash
+npx @vscode/vsce package --allow-missing-repository --skip-license
+code --install-extension agent-sync-0.1.0.vsix
+```
+
+Paketin yüklenebildiği ve `activate()`'in çalıştığı testle doğrulandı (`test/extension-load.test.mjs`), ama gerçek VS Code oturumunda durum çubuğunun göründüğünü ve komutların çalıştığını yalnızca sen görebilirsin.
 
 ---
 
