@@ -24,9 +24,9 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 |---|---|
 | Branch | `feat/implementation` (`main`'de yalnızca dokümanlar var) |
 | Toplam task | 16 |
-| Tamamlanan | 7 |
+| Tamamlanan | 8 |
 | Yazılan ama review edilmeyen | **0** |
-| Test durumu | 47/47 geçiyor, çıktı temiz |
+| Test durumu | 53/53 geçiyor, çıktı temiz |
 
 ### Task durumları
 
@@ -39,7 +39,7 @@ GitHub'a açık kaynak olarak yayınlanacak. Bu yüzden hiçbir dosyada gerçek 
 | 5 | Uygulama katmanı (çakışma yönetimi) | `src/apply.mjs` | ✅ **Tamamlandı** |
 | 6 | Registry ve kimlik çözümleme | `src/registry.mjs`, `src/identity.mjs` | ✅ **Tamamlandı** |
 | 7 | `settings.json` seçici merge | `src/settings-merge.mjs` | ✅ **Tamamlandı** |
-| 8 | Sır taraması ve doctor | `src/secrets.mjs`, `src/doctor.mjs` | ⬜ |
+| 8 | Sır taraması ve doctor | `src/secrets.mjs`, `src/doctor.mjs` | ✅ **Tamamlandı** |
 | 9 | Motor akışı | `src/sync.mjs` | ⬜ |
 | 10 | Proje bağlama ve marker yönetimi | `src/project.mjs` | ⬜ |
 | 11 | Hafıza digest'i ve sınırlayıcılı blok | `src/render.mjs` | ⬜ |
