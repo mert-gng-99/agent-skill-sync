@@ -1,0 +1,10 @@
+{
+  "name": "agent-sync",
+  "version": "0.1.0",
+  "description": "Sync coding-agent skills, memory and settings across machines and tools - path independent",
+  "type": "module",
+  "bin": { "agent-sync": "bin/agent-sync.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test 'test/**/*.test.mjs'" },
+  "license": "MIT"
+}
