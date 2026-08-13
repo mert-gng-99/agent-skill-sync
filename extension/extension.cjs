@@ -46,7 +46,16 @@ function workspaceRoot() {
  */
 async function sync({ silent, direction = 'both' }) {
   const cwd = workspaceRoot();
-  if (!cwd) return;
+  if (!cwd) {
+    // Without an open folder there is no project to resolve. Say so instead of
+    // returning in silence - a status item that never reacts reads as broken.
+    statusItem.text = '$(folder) agent-sync: no folder';
+    statusItem.tooltip = 'Open a folder so agent-sync can tell which project this is.';
+    if (!silent) {
+      vscode.window.showWarningMessage('agent-sync: open a folder first.');
+    }
+    return;
+  }
   try {
     const { loadConfig, runSync, applyAdapters, collectFromTools, ensureIdentity } =
       await engine();
@@ -76,9 +85,21 @@ async function sync({ silent, direction = 'both' }) {
     }
     if (!silent) output.appendLine(`Synced ${plan.length} change(s) for ${identity.id}`);
   } catch (err) {
-    statusItem.text = '$(error) agent-sync';
-    statusItem.tooltip = String(err.message);
-    output.appendLine(`Sync failed: ${err.message}`);
+    // Nothing configured yet is the common first-run case, not a failure.
+    // Tell the user how to fix it rather than logging into a hidden channel.
+    const needsSetup = err.code === 'ENOENT' || /config/i.test(err.message);
+    statusItem.text = needsSetup ? '$(gear) agent-sync: setup needed' : '$(error) agent-sync';
+    statusItem.tooltip = needsSetup
+      ? 'Not configured on this machine yet. Run: node bin/agent-sync.mjs init'
+      : String(err.message);
+    output.appendLine(needsSetup ? `Not configured: ${err.message}` : `Sync failed: ${err.message}`);
+    if (!silent) {
+      vscode.window.showWarningMessage(
+        needsSetup
+          ? 'agent-sync is not set up on this machine yet. Run "node bin/agent-sync.mjs init".'
+          : `agent-sync failed: ${err.message}`
+      );
+    }
   }
 }
 
