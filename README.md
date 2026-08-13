@@ -65,7 +65,16 @@ Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Deskto
 Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcının versiyonlanan `.gitignore` dosyasına asla müdahale edilmez.
 
 ### 7. VS Code Extension
-`extension/` dizinindeki VS Code eklentisi; pencere açılışında, odak değişiminde ve dosya kaydetmede senkronizasyonu arka planda otomatik tetikler. Eklenti kullanıldığında terminal hook'larına gerek kalmaz. Eklentiyi `.vsix` olarak paketleyip VS Code'a yükleyebilirsiniz.
+Eklenti (`extension/`) şu anlarda otomatik tetiklenir: VS Code açılışı (pull), pencere odak kazandığında (pull), pencere odak kaybettiğinde (push) ve `deactivate` (push). Eklenti kullanıldığında terminal hook'larına gerek kalmaz.
+
+Paketleyip kurmak için (her makinede bir kez, `init`'ten sonra):
+
+```bash
+npx @vscode/vsce package --allow-missing-repository --skip-license
+code --install-extension agent-sync-0.1.0.vsix
+```
+
+VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 
 ### 8. Bilinçli Sınırlar
 - **Silme yayılmaz**: Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
@@ -136,7 +145,16 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
 Marker files are registered in `.git/info/exclude`; user-versioned `.gitignore` files are never modified.
 
 ### 7. VS Code Extension
-The extension in `extension/` triggers synchronization automatically on window focus, file saves, and session start. Installing the `.vsix` eliminates the need for shell hooks.
+The extension (`extension/`) triggers automatically on: VS Code startup (pull), window focus gained (pull), window focus lost (push), and `deactivate` (push). Installing it eliminates the need for shell hooks.
+
+Package and install it (once per machine, after `init`):
+
+```bash
+npx @vscode/vsce package --allow-missing-repository --skip-license
+code --install-extension agent-sync-0.1.0.vsix
+```
+
+Restart VS Code; `agent-sync` then appears in the status bar.
 
 ### 8. Design Constraints
 - **Deletions do not propagate**: Absent files are restored from remote. Use `agent-sync forget <path>` for intentional deletions.
