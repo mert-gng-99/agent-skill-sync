@@ -3,10 +3,38 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { readMarker, readGitRemote, addToGitExclude, ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
+import {
+  readMarker,
+  readGitRemote,
+  addToGitExclude,
+  ensureIdentity,
+  linkProject,
+  forgetFile,
+  isUnsyncableDirectory,
+} from '../src/project.mjs';
 import { useIsolatedHome } from './helpers/isolated-home.mjs';
 
 useIsolatedHome();
+
+test('the home directory itself is never a syncable project', () => {
+  // Claude Code hooks fire for every session regardless of cwd. A session
+  // opened with no cwd argument starts in the user's home directory, and
+  // without this guard that turns it into a "project": a marker file and
+  // AGENTS.md/GEMINI.md get written straight into $HOME.
+  assert.equal(isUnsyncableDirectory(os.homedir()), true);
+});
+
+test('an ordinary project directory is syncable', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-proj-'));
+  assert.equal(isUnsyncableDirectory(dir), false);
+});
+
+test('ensureIdentity refuses to write a marker into the home directory', async () => {
+  const config = { syncRoot: await fs.mkdtemp(path.join(os.tmpdir(), 'cs-root-')), machineId: 'macbook' };
+  const identity = await ensureIdentity(config, os.homedir());
+  assert.equal(identity.id, null);
+  await assert.rejects(() => fs.readFile(path.join(os.homedir(), '.claude-project-id')));
+});
 
 test('reads and trims a marker file', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-proj-'));

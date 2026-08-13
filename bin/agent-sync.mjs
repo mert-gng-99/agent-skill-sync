@@ -43,6 +43,10 @@ async function main() {
     case 'pull':
     case 'push': {
       const identity = await ensureIdentity(config, process.cwd());
+      if (!identity.id) {
+        process.stderr.write('agent-sync: the home directory is not a project, nothing to sync\n');
+        return 0;
+      }
       // Only push reads authored content out of the tools. Collecting before a
       // pull manufactures a local copy that was never synced, which the engine
       // then correctly reports as a conflict - a false alarm on every new machine.
@@ -82,7 +86,11 @@ async function main() {
       process.stdout.write(`machine:  ${config.machineId}\n`);
       process.stdout.write(`syncRoot: ${config.syncRoot}\n`);
       process.stdout.write(`targets:  ${config.targets.join(', ') || 'none'}\n`);
-      process.stdout.write(`project:  ${identity.id} (matched by ${identity.source})\n`);
+      process.stdout.write(
+        identity.id
+          ? `project:  ${identity.id} (matched by ${identity.source})\n`
+          : `project:  (none - the home directory is not a project)\n`
+      );
       const { plan } = await runSync({ config, dryRun: true });
       process.stdout.write(`pending:  ${plan.length} change(s)\n`);
       return 0;

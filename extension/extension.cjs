@@ -62,6 +62,15 @@ async function sync({ silent, direction = 'both' }) {
     const config = await loadConfig();
     const identity = await ensureIdentity(config, cwd);
 
+    if (!identity.id) {
+      // The workspace root is the user's home directory - never a project on
+      // its own. Say so calmly rather than treating it as an error.
+      statusItem.text = '$(home) agent-sync: home dir';
+      statusItem.tooltip = 'The open folder is your home directory, which agent-sync never syncs.';
+      if (!silent) output.appendLine('Home directory is not a project - nothing to sync.');
+      return;
+    }
+
     if (direction !== 'in') {
       await collectFromTools({ config, projectId: identity.id, cwd });
     }

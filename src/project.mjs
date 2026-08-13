@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -7,6 +8,18 @@ import { loadRegistry, saveRegistry, upsertProject } from './registry.mjs';
 import { stagedDir, stagedMemoryDir } from './paths.mjs';
 
 const run = promisify(execFile);
+
+/**
+ * Claude Code hooks fire for every session regardless of cwd. A session
+ * started with no cwd argument opens in the user's home directory, and
+ * without this guard that directory gets "projectified": a marker file and
+ * an AGENTS.md/GEMINI.md digest land straight in $HOME. The home directory
+ * is never a project on its own - it is excluded outright rather than left
+ * to folder-name or git-remote matching.
+ */
+export function isUnsyncableDirectory(cwd) {
+  return path.resolve(cwd) === path.resolve(os.homedir());
+}
 
 export async function readMarker(cwd) {
   try {
@@ -52,6 +65,9 @@ export async function addToGitExclude(cwd, name) {
  * registry entry, and links Claude Code's memory directory to the synced copy.
  */
 export async function ensureIdentity(config, cwd, { write = true } = {}) {
+  if (isUnsyncableDirectory(cwd)) {
+    return { id: null, source: 'home-directory', ambiguous: false };
+  }
   const registry = await loadRegistry(config.syncRoot);
   const identity = resolveIdentity({
     folderName: path.basename(cwd),

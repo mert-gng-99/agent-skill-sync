@@ -24,6 +24,14 @@ export async function runWrapped(config, argv) {
   const cwd = process.cwd();
   const identity = await ensureIdentity(config, cwd);
 
+  // The home directory is not a project (see isUnsyncableDirectory): run the
+  // command as asked, just without wrapping it in a sync that has nothing to
+  // sync.
+  if (!identity.id) {
+    process.stderr.write('agent-sync: the home directory is not a project, running without sync\n');
+    return spawnChild(argv[0], argv.slice(1));
+  }
+
   await runSync({ config, dryRun: false });
   await applyAdapters({ config, projectId: identity.id, cwd, dryRun: false });
 
