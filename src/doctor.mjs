@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { collectManifest } from './manifest.mjs';
 import { loadRegistry } from './registry.mjs';
+import { isConflictArtifact } from './apply.mjs';
 import { scanForSecrets, findProviderConflictArtifacts } from './secrets.mjs';
 
 const OK = 'ok';
@@ -34,8 +35,14 @@ export async function runDoctor({ syncRoot, localRoots = [] }) {
     details: artifacts.join(', ') || 'none',
   });
 
-  // 3. Our own conflict files awaiting resolution.
-  const ours = names.filter((n) => n.includes('.conflict-'));
+  // 3. Our own conflict files awaiting resolution. These are local by design -
+  // they are never pushed to syncRoot - so the local trees are where to look.
+  const ours = [];
+  for (const { dir } of localRoots) {
+    for (const rel of (await collectManifest(dir)).keys()) {
+      if (isConflictArtifact(rel)) ours.push(rel);
+    }
+  }
   checks.push({
     name: 'unresolved sync conflicts',
     status: ours.length ? WARN : OK,
