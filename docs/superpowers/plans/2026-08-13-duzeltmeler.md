@@ -323,7 +323,7 @@ Task'lar tek tek incelendi ama dalın tamamına bakan bir tur atılmadı. Yukar�
 - [ ] `npm test` → hepsi geçiyor, çıktı temiz
 - [ ] `./scripts/smoke-test.sh` → `SMOKE TEST PASSED`
 - [ ] `node bin/agent-sync.mjs help` → çıkış kodu 0
-- [ ] `git grep -niE "mertgungor|mert\.gng|mert\.protenis"` → kod ve dokümanlarda sonuç yok
+- [ ] `git grep -niE "<kullanıcı-adın>|<e-postan>"` → kod ve dokümanlarda sonuç yok
 - [ ] `node -e "console.log(require('./package.json').dependencies)"` → `undefined` veya `{}`
 - [ ] `docs/superpowers/HANDOFF.md` içinde çelişkili ifade kalmadı
 
@@ -476,10 +476,10 @@ git commit -m "fix: look for conflict copies in the local trees, where they now 
 
 ## Not: kontrol listesindeki yanlış pozitif
 
-Bitirme listesindeki `git grep -niE "mertgungor|..."` komutu **kendi kendini buluyor** — desen bu belgenin içinde geçtiği için her zaman bir sonuç döner. Tek eşleşme bu satırsa sorun yoktur. Kodda gerçek sızıntı olup olmadığını şöyle bak:
+Bitirme listesindeki kişisel-veri grep komutu **kendi kendini buluyor** — desen bu belgenin içinde geçtiği için her zaman bir sonuç döner. Tek eşleşme bu satırsa sorun yoktur. Kodda gerçek sızıntı olup olmadığını şöyle bak:
 
 ```bash
-git grep -niE "mertgungor|mert\.gng|mert\.protenis" -- src bin extension test
+git grep -niE "<kullanıcı-adın>|<e-postan>" -- src bin extension test
 ```
 
 Beklenen: hiç sonuç yok.

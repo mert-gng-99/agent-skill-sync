@@ -19,7 +19,7 @@
 ### 3. Kurulum ve Testler
 1. Depoyu klonlayın:
    ```bash
-   git clone https://github.com/user/agent-sync.git
+   git clone https://github.com/mert-gng-99/agent-skill-sync.git
    cd agent-sync
    ```
 2. Her makinenizde etkileşimli kurulumu çalıştırın:
@@ -90,7 +90,7 @@ Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir; kullanıcı
 ### 3. Installation & Testing
 1. Clone the repository:
    ```bash
-   git clone https://github.com/user/agent-sync.git
+   git clone https://github.com/mert-gng-99/agent-skill-sync.git
    cd agent-sync
    ```
 2. Run interactive setup on each machine:

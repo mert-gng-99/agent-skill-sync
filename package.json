@@ -4,16 +4,34 @@
   "version": "0.1.0",
   "description": "Sync coding-agent skills, memory and settings across machines and tools - path independent",
   "type": "module",
-  "bin": { "agent-sync": "bin/agent-sync.mjs" },
+  "bin": {
+    "agent-sync": "bin/agent-sync.mjs"
+  },
   "main": "extension/extension.cjs",
-  "engines": { "node": ">=20", "vscode": "^1.85.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "node": ">=20",
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
-      { "command": "agent-sync.sync", "title": "agent-sync: Sync now" },
-      { "command": "agent-sync.doctor", "title": "agent-sync: Run health checks" },
-      { "command": "agent-sync.link", "title": "agent-sync: Link this folder to a project" }
+      {
+        "command": "agent-sync.sync",
+        "title": "agent-sync: Sync now"
+      },
+      {
+        "command": "agent-sync.doctor",
+        "title": "agent-sync: Run health checks"
+      },
+      {
+        "command": "agent-sync.link",
+        "title": "agent-sync: Link this folder to a project"
+      }
     ],
     "configuration": {
       "title": "agent-sync",
@@ -30,13 +48,21 @@
         },
         "agent-sync.targets": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Which agents to write context for."
         }
       }
     }
   },
-  "scripts": { "test": "node --test 'test/**/*.test.mjs'" },
-  "license": "MIT"
+  "scripts": {
+    "test": "node --test 'test/**/*.test.mjs'"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mert-gng-99/agent-skill-sync.git"
+  }
 }
