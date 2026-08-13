@@ -59,6 +59,13 @@ export function planWrites({ adapters, projectId, cwd }) {
       seen.add(file);
       writes.push({ adapter: adapter.id, file, kind: 'digest' });
     }
+    // Optional: only codex declares this today (see agents-md.mjs).
+    const skillsDir =
+      typeof adapter.projectSkillsDir === 'function' ? adapter.projectSkillsDir(cwd) : null;
+    if (skillsDir && !seen.has(skillsDir)) {
+      seen.add(skillsDir);
+      writes.push({ adapter: adapter.id, file: skillsDir, kind: 'skills-dir' });
+    }
   }
   return writes;
 }
@@ -92,6 +99,11 @@ export async function applyAdapters({ config, projectId, cwd, dryRun }) {
       for (const file of memoryFiles) {
         await fs.writeFile(path.join(write.file, file.name), file.content, 'utf8');
       }
+    } else if (write.kind === 'skills-dir') {
+      await fs.mkdir(write.file, { recursive: true });
+      // Overlay, not mirror: only adds/updates the skill folders we manage,
+      // any pre-existing unrelated content under the same directory is left alone.
+      await fs.cp(stagedSkillsDir(), write.file, { recursive: true }).catch(() => {});
     } else {
       await fs.mkdir(path.dirname(write.file), { recursive: true });
       const existing = await fs.readFile(write.file, 'utf8').catch(() => '');

@@ -48,12 +48,14 @@
 
 | Araç Kimliği (`id`) | Araç Adı | Hedef Dosya / Dizin |
 |---|---|---|
-| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` |
-| `codex` | Codex CLI | `AGENTS.md` |
+| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` + `~/.claude/skills/` |
+| `codex` | Codex CLI | `AGENTS.md` + `.agents/skills/` |
 | `opencode` | OpenCode | `AGENTS.md` |
 | `gemini` | Gemini CLI | `GEMINI.md` |
 | `aider` | Aider | `CONVENTIONS.md` |
 | `cursor` | Cursor | `.cursor/rules/agent-sync.mdc` |
+
+**Skill dağıtımı:** Skill'lerin (`~/.claude/skills/`) tam içeriği (`SKILL.md` + referanslar/scriptler) yalnızca **Claude Code ve Codex CLI**'a gerçek dosya olarak dağıtılıyor — ikisi de aynı `SKILL.md` formatını okuyor (Codex, [openai/codex](https://learn.chatgpt.com/docs/build-skills) belgelerine göre `.agents/skills/`'ı proje kökünde arıyor). Diğer araçlarda (`opencode`, `gemini`, `aider`, `cursor`) skill'ler yalnızca isim olarak `AGENTS.md`/`GEMINI.md` içinde listelenir, otomatik tetiklenmez — bu araçların doğrulanmış bir skill mekanizması yok.
 
 ### 6. Proje Kimliği (Path-Independent Identity)
 Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Desktop\app` olsa dahi `agent-sync` projeyi 4 adımlı öncelik sırasıyla tanır:
@@ -139,12 +141,14 @@ Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede — fa
 
 | Target ID | Tool Name | Target File / Directory |
 |---|---|---|
-| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` |
-| `codex` | Codex CLI | `AGENTS.md` |
+| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` + `~/.claude/skills/` |
+| `codex` | Codex CLI | `AGENTS.md` + `.agents/skills/` |
 | `opencode` | OpenCode | `AGENTS.md` |
 | `gemini` | Gemini CLI | `GEMINI.md` |
 | `aider` | Aider | `CONVENTIONS.md` |
 | `cursor` | Cursor | `.cursor/rules/agent-sync.mdc` |
+
+**Skill delivery:** the full content of `~/.claude/skills/` (`SKILL.md` plus references/scripts) is only delivered as real files to **Claude Code and Codex CLI** - both read the same `SKILL.md` format (Codex looks under `.agents/skills/` at the project root, per [OpenAI's docs](https://learn.chatgpt.com/docs/build-skills)). For the other tools (`opencode`, `gemini`, `aider`, `cursor`), skills are only listed by name in `AGENTS.md`/`GEMINI.md` - not auto-triggered, since those tools have no confirmed skill mechanism.
 
 ### 6. Path-Independent Project Identity
 `agent-sync` resolves project identity in 4 prioritized steps:

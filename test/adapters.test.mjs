@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { ADAPTERS, byId, selectAdapters, planWrites, applyAdapters } from '../src/adapters/index.mjs';
 import { claude } from '../src/adapters/claude.mjs';
-import { slugForPath, stagedTranscriptsDir } from '../src/paths.mjs';
+import { slugForPath, stagedTranscriptsDir, stagedSkillsDir } from '../src/paths.mjs';
 import { useIsolatedHome } from './helpers/isolated-home.mjs';
 
 useIsolatedHome();
@@ -151,4 +151,43 @@ test('applyAdapters never touches transcripts when the flag is off', async () =>
 
   const localProjectDir = path.join(os.homedir(), '.claude', 'projects', slugForPath(cwd));
   await assert.rejects(() => fs.readFile(path.join(localProjectDir, 'session-y.jsonl')));
+});
+
+test('codex exposes a project skills directory Codex CLI actually reads', () => {
+  // Confirmed against https://learn.chatgpt.com/docs/build-skills: Codex CLI
+  // looks for skills under .agents/skills/ at the repo root (also checks
+  // $HOME/.agents/skills and a couple of other locations).
+  const cwd = path.join(path.sep, 'proj');
+  assert.equal(byId('codex').projectSkillsDir(cwd), path.join(cwd, '.agents', 'skills'));
+});
+
+test('adapters without confirmed skill support declare none', () => {
+  // Only codex is confirmed (see above). Claiming this for the others without
+  // verifying would silently write files nothing reads.
+  for (const id of ['opencode', 'gemini', 'aider', 'cursor']) {
+    assert.equal(typeof byId(id).projectSkillsDir, 'undefined', `${id} must not claim skill support`);
+  }
+});
+
+test('planWrites includes a skills-dir entry only for codex', () => {
+  const cwd = path.join(path.sep, 'proj');
+  const writes = planWrites({ adapters: selectAdapters(['codex', 'gemini']), projectId: 'p', cwd });
+  const skillsWrite = writes.find((w) => w.kind === 'skills-dir');
+  assert.ok(skillsWrite);
+  assert.equal(skillsWrite.adapter, 'codex');
+  assert.equal(skillsWrite.file, path.join(cwd, '.agents', 'skills'));
+});
+
+test('applyAdapters delivers skill folders where Codex CLI actually looks for them', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-codex-skills-'));
+  await fs.mkdir(path.join(stagedSkillsDir(), 'demo-skill'), { recursive: true });
+  await fs.writeFile(
+    path.join(stagedSkillsDir(), 'demo-skill', 'SKILL.md'),
+    '---\nname: demo-skill\ndescription: for testing\n---\ndo the thing\n'
+  );
+
+  await applyAdapters({ config: { targets: ['codex'] }, projectId: 'p', cwd, dryRun: false });
+
+  const landed = await fs.readFile(path.join(cwd, '.agents', 'skills', 'demo-skill', 'SKILL.md'), 'utf8');
+  assert.match(landed, /demo-skill/);
 });
