@@ -36,12 +36,34 @@ English: [README.md](README.md)
    ```bash
    node bin/agent-sync.mjs init
    ```
-   Claude Code'u VS Code eklentisi yerine terminalden kullanıyorsanız `init`, `~/.claude/settings.json` içine iki hook kurmayı önerir: biri oturum başlarken `pull`, diğeri oturum biterken `push` çalıştırır. Bu hook komutları her zaman `--hook` bayrağını taşır (bkz. bölüm 5), böylece bir oturumun rastgele bir klasörde (örneğin masaüstünde) başlaması, o klasörü kendiliğinden yeni bir projeye çevirmez.
+   Claude Code'u VS Code eklentisi yerine terminalden kullanıyorsanız `init`, `~/.claude/settings.json` içine iki hook kurmayı önerir: biri oturum başlarken `pull`, diğeri oturum biterken `push` çalıştırır. Bu hook komutları her zaman `--hook` bayrağını taşır (bkz. bölüm 6), böylece bir oturumun rastgele bir klasörde (örneğin masaüstünde) başlaması, o klasörü kendiliğinden yeni bir projeye çevirmez.
 3. Testleri çalıştırmak için:
    - Birim testleri: `npm test`
    - Uçtan uca smoke testi: `./scripts/smoke-test.sh` (izole geçici bir `HOME` dizininde çalıştığından gerçek bilgisayarınızdaki dizinlere dokunmaz).
 
-### 5. Komutlar
+### 5. Bir yapay zeka ajanıyla kurulum
+Her adımı elle yazmanıza gerek yok. Aşağıdaki promptlardan birini, kabuk komutu çalıştırabilen bir kodlama ajanına yapıştırın: Claude Code, Codex CLI, OpenCode, Aider veya Cursor'ın ajan modu gibi. Kurulum yalnızca birkaç kabuk komutu olduğu için aynı prompt hepsinde çalışır.
+
+İki yer tutucuyu göndermeden önce doldurun.
+
+```
+https://github.com/mert-gng-99/agent-skill-sync.git deposunu ~/agent-sync altına klonla, sonra kurulum sihirbazını çalıştır: `node bin/agent-sync.mjs init`.
+Senkron klasörü sorduğunda şunu kullan: <Google Drive / OneDrive / Dropbox / Syncthing klasörünüzün yolu>
+Makine adı sorduğunda şunu kullan: <bu bilgisayar için kısa bir isim, örn. macbook veya is-pc>
+Bulduğu araçları listelediğinde, gerçekten kullandıklarımı seç.
+Claude Code hook'larını kurmayı sorarsa, yalnızca sen terminalde çalışan Claude Code isen evet de, VS Code eklentisiysen hayır de.
+Bundan sonra `npm test` ve `./scripts/smoke-test.sh` çalıştır ve geçip geçmediğini söyle.
+```
+
+Bunu her bilgisayarda bir kez yapın. Senkron klasörü her makinede aynı olsun; yerel yol bulut sürücünün mount noktasına göre makineden makineye değişebilir, önemli olan aynı paylaşılan klasörü göstermesi.
+
+VS Code eklentisini (bkz. bölüm 9) terminal hook'ları yerine kullanacaksanız, prompt'a şu satırı da ekleyin:
+
+```
+Sonra VS Code eklentisini derle ve kur: `npx @vscode/vsce package --allow-missing-repository --skip-license`, sonra `code --install-extension agent-sync-0.1.0.vsix`.
+```
+
+### 6. Komutlar
 `node bin/agent-sync.mjs <command> [--force]` (veya `npm link` ile `agent-sync <command>`):
 
 | Komut | Açıklama |
@@ -57,7 +79,7 @@ English: [README.md](README.md)
 | `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
 | `--hook` | Yalnızca otomatik çağıranlar için, örneğin `init`'in kurduğu Claude Code hook'ları (bkz. bölüm 4): henüz proje marker'ı olmayan bir klasörü, yeni proje oluşturmak yerine atlar |
 
-### 6. Desteklenen Araçlar
+### 7. Desteklenen Araçlar
 
 | Araç Kimliği (`id`) | Araç Adı | Hedef Dosya / Dizin |
 |---|---|---|
@@ -70,7 +92,7 @@ English: [README.md](README.md)
 
 Skill'lerin (`~/.claude/skills/`) tam içeriği (`SKILL.md` + referanslar/scriptler) yalnızca **Claude Code ve Codex CLI**'a gerçek dosya olarak dağıtılıyor, çünkü ikisi de aynı `SKILL.md` formatını okuyor (Codex, [openai/codex](https://learn.chatgpt.com/docs/build-skills) belgelerine göre `.agents/skills/`'ı proje kökünde arıyor). Diğer araçlarda (`opencode`, `gemini`, `aider`, `cursor`) skill'ler yalnızca isim olarak `AGENTS.md`/`GEMINI.md` içinde listelenir, otomatik tetiklenmez. Bu araçların doğrulanmış bir skill mekanizması yok.
 
-### 7. Proje Kimliği (Path-Independent Identity)
+### 8. Proje Kimliği (Path-Independent Identity)
 Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Desktop\app` olsa dahi `agent-sync` projeyi 4 adımlı öncelik sırasıyla tanır:
 1. Proje kökündeki `.claude-project-id` marker dosyası.
 2. Git remote URL adresi (registry ile eşleşen).
@@ -79,7 +101,7 @@ Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Deskto
 
 Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir. Kullanıcının versiyonlanan `.gitignore` dosyasına asla müdahale edilmez.
 
-### 8. VS Code Extension
+### 9. VS Code Extension
 Eklenti (`extension/`) şu anlarda otomatik tetiklenir: VS Code açılışı (pull), pencere odak kazandığında (pull), pencere odak kaybettiğinde (push) ve `deactivate` (push). Eklenti kullanıldığında terminal hook'larına gerek kalmaz.
 
 Paketleyip kurmak için (her makinede bir kez, `init`'ten sonra):
@@ -99,13 +121,13 @@ VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 
 **Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir, `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur. Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.
 
-### 9. Bilinçli Sınırlar
+### 10. Bilinçli Sınırlar
 - Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
 - Senkronizasyon anlık akış değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.
 - Skill'ler yalnızca Claude Code üzerinde otomatik araç olarak tetiklenir. Diğer araçlarda okunabilir metin olarak erişilebilir durumdadır.
 - Dışarı çıkacak (`push`) dosyalarda API anahtarları ve şifreler taranır. Şüpheli dosyalar **push edilmez, yerelde kalır** ve raporlanır. Yanlış pozitif durumlarında `--force` parametresiyle push zorlanabilir. Gelen (`pull`) dosyalar taranmaz.
 
-### 10. Oturum Devamlılığı (Transkript Senkronu)
+### 11. Oturum Devamlılığı (Transkript Senkronu)
 
 Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede açıldığında (farklı klasör yolunda, farklı işletim sisteminde bile), Claude Code oturumlarının kaldığı yerden devam etmesini istiyorsan `syncTranscripts` ayarını aç (eklenti Ayarlar ekranından veya `config.json`'da). Açıkken:
 

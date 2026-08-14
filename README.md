@@ -36,12 +36,34 @@ Türkçe: [README.tr.md](README.tr.md)
    ```bash
    node bin/agent-sync.mjs init
    ```
-   If you use Claude Code in a terminal, not the VS Code extension, `init` offers to install two hooks in `~/.claude/settings.json`: one that runs `pull` when a session starts, one that runs `push` when it ends. These hook commands always carry `--hook` (see section 5), so a session that happens to start in an unrelated folder, like your desktop, never turns it into a new tracked project on its own.
+   If you use Claude Code in a terminal, not the VS Code extension, `init` offers to install two hooks in `~/.claude/settings.json`: one that runs `pull` when a session starts, one that runs `push` when it ends. These hook commands always carry `--hook` (see section 6), so a session that happens to start in an unrelated folder, like your desktop, never turns it into a new tracked project on its own.
 3. Run the tests.
    - Unit tests: `npm test`
    - End to end test: `./scripts/smoke-test.sh` (this runs inside a temporary `$HOME` folder, so it never touches your real `~/.claude` or `~/.agent-sync` folders)
 
-### 5. CLI commands
+### 5. Install with an AI agent
+You do not have to type every step yourself. Paste one of the prompts below into a coding agent that can run shell commands, for example Claude Code, Codex CLI, OpenCode, Aider, or Cursor's agent mode. The setup is just a few shell commands, so the same prompt works for all of them.
+
+Fill in the two placeholders before you send it.
+
+```
+Clone https://github.com/mert-gng-99/agent-skill-sync.git into ~/agent-sync, then run its setup wizard: `node bin/agent-sync.mjs init`.
+When it asks for the sync folder, use: <path to your Google Drive / OneDrive / Dropbox / Syncthing folder>
+When it asks for a machine name, use: <short name for this computer, e.g. macbook or work-pc>
+When it lists the tools it found, pick the ones I actually use.
+If it asks about installing Claude Code hooks, say yes only if you are Claude Code running in a terminal, not the VS Code extension.
+After that, run `npm test` and `./scripts/smoke-test.sh`, and tell me if they pass.
+```
+
+Do this once per computer. Use the same sync folder on every machine, the local path can differ from computer to computer since cloud drives often mount at different paths, but it has to point at the same shared folder.
+
+If you plan to use the VS Code extension (see section 9) instead of terminal hooks, add this line to the prompt too:
+
+```
+Then build and install the VS Code extension: `npx @vscode/vsce package --allow-missing-repository --skip-license`, then `code --install-extension agent-sync-0.1.0.vsix`.
+```
+
+### 6. CLI commands
 `node bin/agent-sync.mjs <command> [--force]` (or `agent-sync <command>` after `npm link`):
 
 | Command | What it does |
@@ -57,7 +79,7 @@ Türkçe: [README.tr.md](README.tr.md)
 | `--force` | Pushes files even when they look like they hold a secret |
 | `--hook` | For automated callers, like the Claude Code hooks from `init` (see section 4): skips a folder with no project marker yet, instead of creating a new project |
 
-### 6. Supported tools
+### 7. Supported tools
 
 | Target ID | Tool | File or folder it writes to |
 |---|---|---|
@@ -70,7 +92,7 @@ Türkçe: [README.tr.md](README.tr.md)
 
 `agent-sync` sends the full content of `~/.claude/skills/` (`SKILL.md` plus references and scripts) as real files only to **Claude Code and Codex CLI**. Both tools read the same `SKILL.md` format. Codex looks for skills under `.agents/skills/` in the project root, per [OpenAI's docs](https://learn.chatgpt.com/docs/build-skills). For the other tools (`opencode`, `gemini`, `aider`, `cursor`), `agent-sync` only lists skill names inside `AGENTS.md` or `GEMINI.md`. These tools do not auto load skills, because they have no confirmed skill system.
 
-### 7. Path independent project identity
+### 8. Path independent project identity
 The same project can sit at `/Users/mert/Desktop/app` on macOS and `C:\Users\mert\Desktop\app` on Windows. `agent-sync` still finds it, using 4 steps, in this order.
 1. A `.claude-project-id` marker file in the project root.
 2. A Git remote URL that matches an entry in the registry.
@@ -79,7 +101,7 @@ The same project can sit at `/Users/mert/Desktop/app` on macOS and `C:\Users\mer
 
 The marker file is added to `.git/info/exclude`. `agent-sync` never touches your own `.gitignore` file.
 
-### 8. VS Code extension
+### 9. VS Code extension
 The extension (in `extension/`) syncs on its own at these times: VS Code start (pull), window gets focus (pull), window loses focus (push), and `deactivate` (push). With the extension installed, you do not need shell hooks.
 
 Build and install it once per computer, after `init`.
@@ -99,13 +121,13 @@ Restart VS Code. Then `agent-sync` shows up in the status bar.
 
 **Settings** (press `Cmd/Ctrl + ,`, then search "agent-sync"): you can set `syncRoot`, `machineId`, and `targets` here, so you never need to hand edit `config.json`. `targets` is a pick list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free text. If you leave a field empty, `agent-sync` keeps the value already in `config.json`. The Settings screen only changes the fields you actually touch.
 
-### 9. Design limits
+### 10. Design limits
 - Deletions do not spread. If you delete a file on one computer, `agent-sync` brings it back from the remote copy. To delete a file on purpose, use `agent-sync forget <path>`.
 - Sync is not live streaming. It runs at the start and end of a session, or through the `run` command wrapper.
 - Skills only auto trigger inside Claude Code. In the other tools they are readable text, but nothing loads them on its own.
 - Before a push, `agent-sync` scans outgoing files for API keys and passwords. A file that looks risky stays local and gets reported, instead of being pushed. Use `--force` to push it anyway, if the match was wrong. Incoming files, from `pull`, are not scanned.
 
-### 10. Session continuity (transcript sync)
+### 11. Session continuity (transcript sync)
 Say you open the same project on a different computer, maybe a different folder path, maybe a different OS. If you want your Claude Code session to pick up where it left off, turn on `syncTranscripts` (from the extension Settings, or in `config.json`). Once it is on:
 
 - This project's `.jsonl` session files are stored by project ID, not by path, under `<syncRoot>/transcripts/<project-id>/`.
