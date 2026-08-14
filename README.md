@@ -1,202 +1,105 @@
 # agent-sync
 
-`agent-sync`, kodlama ajanlarının (**Claude Code, Codex, OpenCode, Gemini CLI, Aider, Cursor**) skill'lerini, kalıcı hafızasını ve paylaşılan ayarlarını hem **makineler** (macOS, Windows, Linux) hem **araçlar** arasında senkronize eden, sıfır bağımlılıklı bir Node.js CLI aracıdır. Dosya yolu makineden makineye değişse bile yol-bağımsız kimlik çözümlemesi sayesinde aynı projeyi tanır.
+Türkçe: [README.tr.md](README.tr.md)
+
+`agent-sync` is a small Node.js tool for developers. It keeps your AI coding skills, memory, and settings the same across many computers (macOS, Windows, Linux) and many AI tools (**Claude Code, Codex, OpenCode, Gemini CLI, Aider, Cursor**). It has no extra dependencies. It finds the same project even when the folder path is different on each computer.
 
 ---
-
-## Türkçe Dokümantasyon
-
-### 1. Tanım
-`agent-sync`, farklı cihazlarda veya farklı yapay zeka araçlarında çalışırken ajanların bağlam kaybetmesini engeller. Bir araçta öğrenilen karar veya hafıza notu, senkronizasyon klasörü üzerinden diğer makinelerdeki ve araçlardaki ajanların erişimine sunulur.
-
-### 2. Gereksinimler & Politikalar
-- Node.js >= 20.0.0 gerekir, sıfır harici `npm` bağımlılığı.
-- `syncRoot` cihazlarınız arasında zaten senkronize olan bir dizindir (Google Drive, OneDrive, Dropbox, Syncthing veya yerel ağ paylaşımı). `agent-sync` dosya taşıma işini kendisi yapmaz, bulut sürücünüzün senkronizasyon yeteneğini kullanır.
-- Hafızanın etkili çalışması için `<syncRoot>/CLAUDE.md` veya paylaşılan genel talimatlara, ajanların kritik mimari kararları hafızaya kaydetmesini söyleyen bir kural eklenmelidir (Faz 0 hafıza politikası).
-
-> ⚠️ **Önemli Uyarı**: `syncRoot` dizini içine kesinlikle bir `.git` deposu (`git init`) koymayın. İki farklı makineden eşzamanlı yazma durumunda `.git` veritabanı bozulabilir.
-
-### 3. Kurulum ve Testler
-1. Depoyu klonlayın:
-   ```bash
-   git clone https://github.com/mert-gng-99/agent-skill-sync.git
-   cd agent-sync
-   ```
-2. Her makinenizde etkileşimli kurulumu çalıştırın:
-   ```bash
-   node bin/agent-sync.mjs init
-   ```
-3. Testleri çalıştırmak için:
-   - Birim testleri: `npm test`
-   - Uçtan uca smoke testi: `./scripts/smoke-test.sh` (izole geçici bir `HOME` dizininde çalıştığından gerçek bilgisayarınızdaki dizinlere dokunmaz).
-
-### 4. Komutlar
-`node bin/agent-sync.mjs <command> [--force]` (veya `npm link` ile `agent-sync <command>`):
-
-| Komut | Açıklama |
-|---|---|
-| `init` | Bu makineyi yapılandırır: config, syncRoot ve hedef araç seçimi |
-| `pull` \| `push` | Skill'leri, hafızayı ve paylaşılan ayarları senkronize eder |
-| `status` | Makine, mevcut proje, hedefler ve bekleyen değişiklikleri gösterir |
-| `doctor` | Sağlık kontrolleri: çakışmalar, registry tutarlılığı, sır taraması |
-| `link <project-id>` | Mevcut çalışma dizinini var olan bir proje kimliğine bağlar |
-| `forget <path>` | Bir dosyayı hem yerel hem de uzak depodan bilinçli olarak siler |
-| `run <command...>` | Komut öncesi pull yapar, komutu çalıştırır, çıkışta push yapar |
-| `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
-
-### 5. Desteklenen Araçlar
-
-| Araç Kimliği (`id`) | Araç Adı | Hedef Dosya / Dizin |
-|---|---|---|
-| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` + `~/.claude/skills/` |
-| `codex` | Codex CLI | `AGENTS.md` + `.agents/skills/` |
-| `opencode` | OpenCode | `AGENTS.md` |
-| `gemini` | Gemini CLI | `GEMINI.md` |
-| `aider` | Aider | `CONVENTIONS.md` |
-| `cursor` | Cursor | `.cursor/rules/agent-sync.mdc` |
-
-Skill'lerin (`~/.claude/skills/`) tam içeriği (`SKILL.md` + referanslar/scriptler) yalnızca **Claude Code ve Codex CLI**'a gerçek dosya olarak dağıtılıyor, çünkü ikisi de aynı `SKILL.md` formatını okuyor (Codex, [openai/codex](https://learn.chatgpt.com/docs/build-skills) belgelerine göre `.agents/skills/`'ı proje kökünde arıyor). Diğer araçlarda (`opencode`, `gemini`, `aider`, `cursor`) skill'ler yalnızca isim olarak `AGENTS.md`/`GEMINI.md` içinde listelenir, otomatik tetiklenmez. Bu araçların doğrulanmış bir skill mekanizması yok.
-
-### 6. Proje Kimliği (Path-Independent Identity)
-Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Desktop\app` olsa dahi `agent-sync` projeyi 4 adımlı öncelik sırasıyla tanır:
-1. Proje kökündeki `.claude-project-id` marker dosyası.
-2. Git remote URL adresi (registry ile eşleşen).
-3. Klasör adı (registry'de benzersiz ise).
-4. Eşleşme yoksa üretilen yeni benzersiz ID. Çakışma durumunda `agent-sync link <id>` ile manuel bağlama yapılır.
-
-Marker dosyaları projenizin `.git/info/exclude` dosyasına eklenir. Kullanıcının versiyonlanan `.gitignore` dosyasına asla müdahale edilmez.
-
-### 7. VS Code Extension
-Eklenti (`extension/`) şu anlarda otomatik tetiklenir: VS Code açılışı (pull), pencere odak kazandığında (pull), pencere odak kaybettiğinde (push) ve `deactivate` (push). Eklenti kullanıldığında terminal hook'larına gerek kalmaz.
-
-Paketleyip kurmak için (her makinede bir kez, `init`'ten sonra):
-
-```bash
-npx @vscode/vsce package --allow-missing-repository --skip-license
-code --install-extension agent-sync-0.1.0.vsix
-```
-
-VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
-
-**Komutlar** (`Cmd/Ctrl + Shift + P` → "agent-sync" ara):
-- `agent-sync: Sync now` elle pull+push çalıştırır.
-- `agent-sync: Run health checks` `doctor` çıktısını Output panelinde gösterir.
-- `agent-sync: Link this folder to a project` bu klasörün şu an hangi projeye çözümlendiğini (ve nasıl eşleştiğini) gösterir, **ve bilinen projelerden birini seçmene veya yeni bir proje kimliği oluşturmana izin verir**. Otomatik eşleştirme yanlış çıktıysa (örneğin jenerik bir klasör adı iki projeyle çakıştıysa) buradan düzeltirsin. Bu, CLI'daki `agent-sync link <id>`'in arayüzden karşılığıdır.
-
-**Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir, `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur. Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.
-
-### 8. Bilinçli Sınırlar
-- Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
-- Senkronizasyon anlık akış değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.
-- Skill'ler yalnızca Claude Code üzerinde otomatik araç olarak tetiklenir. Diğer araçlarda okunabilir metin olarak erişilebilir durumdadır.
-- Dışarı çıkacak (`push`) dosyalarda API anahtarları ve şifreler taranır. Şüpheli dosyalar **push edilmez, yerelde kalır** ve raporlanır. Yanlış pozitif durumlarında `--force` parametresiyle push zorlanabilir. Gelen (`pull`) dosyalar taranmaz.
-
-### 9. Oturum Devamlılığı (Transkript Senkronu)
-
-Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede açıldığında (farklı klasör yolunda, farklı işletim sisteminde bile), Claude Code oturumlarının kaldığı yerden devam etmesini istiyorsan `syncTranscripts` ayarını aç (eklenti Ayarlar ekranından veya `config.json`'da). Açıkken:
-
-- Bu projenin `.jsonl` oturum dosyaları proje kimliğine göre (yola göre değil) `<syncRoot>/transcripts/<proje-id>/` altında saklanır.
-- Diğer makinede aynı projeyi `pull` ettiğinde, o dosyalar **o makinenin kendi yol-bağımlı klasörüne** kopyalanır. `claude --resume` orada onları görür ve listeler.
-- Varsayılan olarak kapalıdır, çünkü transkript dosyaları büyük ve sürekli büyüyen içerik taşır, hafıza notları gibi süzülmüş değildir. Diğer her şey gibi push öncesi sır taraması bu dosyalardan da geçer.
-- Bilinen sınır: konuşmanın metni (ne konuşuldu, ne karar verildi) birebir gelir. Ama transkript içindeki eski dosya okuma/yazma kayıtları kaynak makinenin mutlak yollarına referans verir, hedef makinede o yollar yoktur. Yani "devam et" isteği çalışır, ama eski bir tool sonucuna geri dönmek çalışmaz.
-
----
-
-## English Documentation
 
 ### 1. Overview
-`agent-sync` is a zero-dependency Node.js CLI tool that synchronizes coding agent skills, persistent memory, and shared settings across multiple machines (macOS, Windows, Linux) and AI tools (**Claude Code, Codex, OpenCode, Gemini CLI, Aider, Cursor**). It features path-independent project resolution, recognizing the same project even if local folder paths differ across OS environments.
+`agent-sync` stops your AI agent from losing context when you work on different computers, or with different AI tools. A decision or a memory note from one tool becomes available to agents on other computers and other tools, through a shared sync folder.
 
-### 2. Requirements & Policies
-- Node.js >= 20.0.0, using built-in modules only, zero runtime `npm` dependencies.
-- `syncRoot` is a directory already synced between your machines via cloud storage (Google Drive, OneDrive, Dropbox, Syncthing, or a network share). `agent-sync` does not handle transport itself.
-- Add instructions in `<syncRoot>/CLAUDE.md` or shared global guidelines asking agents to record key decisions into project memory (this is the "Phase 0" memory policy).
+### 2. Requirements and policies
+- You need Node.js version 20 or higher. `agent-sync` uses only built-in Node modules, so it needs no `npm` packages.
+- `syncRoot` is a folder that already syncs between your computers. You can use Google Drive, OneDrive, Dropbox, Syncthing, or a network share. `agent-sync` does not move files between computers itself. It uses your cloud tool for that.
+- Add a rule in `<syncRoot>/CLAUDE.md`, or in your shared instructions, that tells agents to save key decisions to memory. This is the "Phase 0" memory policy, and it is what makes the memory sync worth using.
 
-> ⚠️ **Warning**: Do not place a Git repository (`.git`) directly inside `syncRoot`. Concurrent writes from multiple machines will corrupt the Git database.
+> ⚠️ **Warning**: Do not put a Git repository (`.git`) inside `syncRoot`. If two computers write to it at the same time, the Git database can break.
 
-### 3. Installation & Testing
-1. Clone the repository:
+### 3. Installation and testing
+1. Clone the repository.
    ```bash
    git clone https://github.com/mert-gng-99/agent-skill-sync.git
    cd agent-sync
    ```
-2. Run interactive setup on each machine:
+2. Run the setup on each computer.
    ```bash
    node bin/agent-sync.mjs init
    ```
-3. Run tests:
+3. Run the tests.
    - Unit tests: `npm test`
-   - End-to-end smoke test: `./scripts/smoke-test.sh` (runs entirely inside an isolated temporary `$HOME`, making it completely safe and non-destructive to your real `~/.claude` and `~/.agent-sync` environments).
+   - End to end test: `./scripts/smoke-test.sh` (this runs inside a temporary `$HOME` folder, so it never touches your real `~/.claude` or `~/.agent-sync` folders)
 
-### 4. CLI Commands
-`node bin/agent-sync.mjs <command> [--force]` (or `agent-sync <command>`):
+### 4. CLI commands
+`node bin/agent-sync.mjs <command> [--force]` (or `agent-sync <command>` after `npm link`):
 
-| Command | Description |
+| Command | What it does |
 |---|---|
-| `init` | Configure this machine: config, syncRoot path, and tool targets |
-| `pull` \| `push` | Synchronize skills, memory, and shared settings |
-| `status` | Display machine ID, project ID, targets, and pending changes |
-| `doctor` | Health checks: unresolved conflicts, registry consistency, secret scan |
-| `link <project-id>` | Manually bind current working directory to an existing project ID |
-| `forget <path>` | Purge a file locally and remotely intentionally |
-| `run <command...>` | Pull before command execution, run command, push on exit |
-| `--force` | Force push files even when they look like they contain secrets |
+| `init` | Sets up this computer: config, syncRoot, and tool targets |
+| `pull` \| `push` | Syncs skills, memory, and shared settings |
+| `status` | Shows the machine, the project, the targets, and pending changes |
+| `doctor` | Runs health checks: conflicts, registry problems, secret scan |
+| `link <project-id>` | Connects this folder to an existing project ID by hand |
+| `forget <path>` | Deletes a file on purpose, both locally and remotely |
+| `run <command...>` | Pulls first, runs your command, then pushes when it ends |
+| `--force` | Pushes files even when they look like they hold a secret |
 
-### 5. Supported Tools
+### 5. Supported tools
 
-| Target ID | Tool Name | Target File / Directory |
+| Target ID | Tool | File or folder it writes to |
 |---|---|---|
-| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` + `~/.claude/skills/` |
-| `codex` | Codex CLI | `AGENTS.md` + `.agents/skills/` |
+| `claude` | Claude Code | `~/.claude/projects/<slug>/memory/` and `~/.claude/skills/` |
+| `codex` | Codex CLI | `AGENTS.md` and `.agents/skills/` |
 | `opencode` | OpenCode | `AGENTS.md` |
 | `gemini` | Gemini CLI | `GEMINI.md` |
 | `aider` | Aider | `CONVENTIONS.md` |
 | `cursor` | Cursor | `.cursor/rules/agent-sync.mdc` |
 
-The full content of `~/.claude/skills/` (`SKILL.md` plus references/scripts) is only delivered as real files to **Claude Code and Codex CLI**, since both read the same `SKILL.md` format (Codex looks under `.agents/skills/` at the project root, per [OpenAI's docs](https://learn.chatgpt.com/docs/build-skills)). For the other tools (`opencode`, `gemini`, `aider`, `cursor`), skills are only listed by name in `AGENTS.md`/`GEMINI.md`, not auto-triggered, since those tools have no confirmed skill mechanism.
+`agent-sync` sends the full content of `~/.claude/skills/` (`SKILL.md` plus references and scripts) as real files only to **Claude Code and Codex CLI**. Both tools read the same `SKILL.md` format. Codex looks for skills under `.agents/skills/` in the project root, per [OpenAI's docs](https://learn.chatgpt.com/docs/build-skills). For the other tools (`opencode`, `gemini`, `aider`, `cursor`), `agent-sync` only lists skill names inside `AGENTS.md` or `GEMINI.md`. These tools do not auto load skills, because they have no confirmed skill system.
 
-### 6. Path-Independent Project Identity
-`agent-sync` resolves project identity in 4 prioritized steps:
-1. Project marker file `.claude-project-id`.
-2. Git remote URL matching a registry entry.
-3. Folder name matching a unique registry entry.
-4. Newly generated unique project ID. Ambiguities can be bound via `agent-sync link <id>`.
+### 6. Path independent project identity
+The same project can sit at `/Users/mert/Desktop/app` on macOS and `C:\Users\mert\Desktop\app` on Windows. `agent-sync` still finds it, using 4 steps, in this order.
+1. A `.claude-project-id` marker file in the project root.
+2. A Git remote URL that matches an entry in the registry.
+3. A folder name that matches one entry in the registry, and only one.
+4. If nothing matches, `agent-sync` makes a new project ID. If two projects share a folder name, fix the match by hand with `agent-sync link <id>`.
 
-Marker files are registered in `.git/info/exclude`. User-versioned `.gitignore` files are never modified.
+The marker file is added to `.git/info/exclude`. `agent-sync` never touches your own `.gitignore` file.
 
-### 7. VS Code Extension
-The extension (`extension/`) triggers automatically on: VS Code startup (pull), window focus gained (pull), window focus lost (push), and `deactivate` (push). Installing it eliminates the need for shell hooks.
+### 7. VS Code extension
+The extension (in `extension/`) syncs on its own at these times: VS Code start (pull), window gets focus (pull), window loses focus (push), and `deactivate` (push). With the extension installed, you do not need shell hooks.
 
-Package and install it (once per machine, after `init`):
+Build and install it once per computer, after `init`.
 
 ```bash
 npx @vscode/vsce package --allow-missing-repository --skip-license
 code --install-extension agent-sync-0.1.0.vsix
 ```
 
-Restart VS Code. `agent-sync` then appears in the status bar.
+Restart VS Code. Then `agent-sync` shows up in the status bar.
 
-**Commands** (`Cmd/Ctrl + Shift + P` → search "agent-sync"):
-- `agent-sync: Sync now` runs a manual pull and push.
+**Commands** (press `Cmd/Ctrl + Shift + P`, then search "agent-sync"):
+- `agent-sync: Sync now` runs a pull and a push by hand.
 - `agent-sync: Run health checks` shows `doctor` output in the Output panel.
-- `agent-sync: Link this folder to a project` shows which project this folder currently resolves to (and how), **and lets you pick a different known project or create a new one**. Use this when auto-matching guesses wrong (for example, a generic folder name collides with two projects). It is the UI equivalent of `agent-sync link <id>` on the CLI.
+- `agent-sync: Link this folder to a project` shows which project this folder matches right now, and how. It also lets you pick a different known project, or make a new one. Use it when the automatic match picks the wrong project, for example when two projects share a folder name. It does the same job as `agent-sync link <id>` on the CLI.
 
-**Settings** (`Cmd/Ctrl + ,` → search "agent-sync"): `syncRoot`, `machineId`, and `targets` can be edited directly there, no need to hand-edit `config.json`. `targets` is a pick-list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free-text JSON. Leaving a field untouched keeps whatever is already in `config.json`. The Settings UI only overrides fields you've actually changed.
+**Settings** (press `Cmd/Ctrl + ,`, then search "agent-sync"): you can set `syncRoot`, `machineId`, and `targets` here, so you never need to hand edit `config.json`. `targets` is a pick list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free text. If you leave a field empty, `agent-sync` keeps the value already in `config.json`. The Settings screen only changes the fields you actually touch.
 
-### 8. Design Constraints
-- Deletions do not propagate. Absent files are restored from remote. Use `agent-sync forget <path>` for intentional deletions.
-- Outbound files (`push`) are scanned for API keys and passwords. Suspected files are **withheld from the push and kept locally**. Use the `--force` flag to override false positives. Inbound files (`pull`) are not blocked.
+### 8. Design limits
+- Deletions do not spread. If you delete a file on one computer, `agent-sync` brings it back from the remote copy. To delete a file on purpose, use `agent-sync forget <path>`.
+- Sync is not live streaming. It runs at the start and end of a session, or through the `run` command wrapper.
+- Skills only auto trigger inside Claude Code. In the other tools they are readable text, but nothing loads them on its own.
+- Before a push, `agent-sync` scans outgoing files for API keys and passwords. A file that looks risky stays local and gets reported, instead of being pushed. Use `--force` to push it anyway, if the match was wrong. Incoming files, from `pull`, are not scanned.
 
-### 9. Session Continuity (Transcript Sync)
+### 9. Session continuity (transcript sync)
+Say you open the same project on a different computer, maybe a different folder path, maybe a different OS. If you want your Claude Code session to pick up where it left off, turn on `syncTranscripts` (from the extension Settings, or in `config.json`). Once it is on:
 
-If the same project (same git remote or project id) is opened on a different machine, even under a different folder path or OS, and you want Claude Code sessions to pick up where they left off, turn on `syncTranscripts` (from the extension's Settings, or in `config.json`). When enabled:
-
-- This project's `.jsonl` session files are stored keyed by project id, not by path, under `<syncRoot>/transcripts/<project-id>/`.
-- Pulling the same project on another machine copies those files into **that machine's own path-derived folder**. `claude --resume` finds and lists them there.
-- Off by **default**, because transcripts are large and grow without bound, and are not curated the way memory notes are. They go through the same pre-push secret scan as everything else.
-- Known limitation: the conversational text (what was discussed, decided) transfers verbatim. Old tool-call results inside the transcript reference the origin machine's absolute paths, which do not exist on the destination. So "continue the conversation" works, but reaching back into an old tool result does not.
+- This project's `.jsonl` session files are stored by project ID, not by path, under `<syncRoot>/transcripts/<project-id>/`.
+- When you pull the same project on another computer, those files land in that computer's own path based folder, and `claude --resume` finds and lists them there.
+- It is off by default, because session files are large and grow without limit, and they are not cleaned up the way memory notes are. They still go through the same secret scan as everything else, before a push.
+- Known limit: the text of the conversation, what was said and decided, comes through fully. Old tool results inside the session file still point to file paths on the first computer, and those paths do not exist on the second one. So "continue the chat" works, but reaching back into an old tool result does not.
 
 ---
 
 ## License
-MIT License - Copyright (c) 2026 agent-sync contributors.
+MIT License. Copyright (c) 2026 agent-sync contributors.
