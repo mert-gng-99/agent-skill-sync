@@ -6,6 +6,11 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$REPO/bin/agent-sync.mjs"
 SB="$(mktemp -d)"
+# Resolved once, up front: macOS symlinks /var -> /private/var, so Node (which
+# resolves paths) and bash's raw $SB would otherwise disagree on what "the
+# same path" looks like as a string - only matters where output is compared
+# by text rather than by filesystem operations.
+SB="$(cd "$SB" && pwd -P)"
 trap 'rm -rf "$SB"' EXIT
 
 mkdir -p "$SB/home/.agent-sync" "$SB/drive" "$SB/proj"
@@ -59,6 +64,14 @@ ID_A="$(cat "$SB/proj/.claude-project-id")"
 ID_B="$(cat "$SB/elsewhere/dev/proj/.claude-project-id")"
 [ "$ID_A" = "$ID_B" ] || { echo "FAIL: identity differs ($ID_A vs $ID_B)"; exit 1; }
 
+echo "--- assert: 'projects' shows this project on both machines, with each one's own path ---"
+PROJECTS_OUT="$( cd "$SB/elsewhere/dev/proj" && node "$BIN" projects )"
+echo "$PROJECTS_OUT"
+echo "$PROJECTS_OUT" | grep -q "machine-a: $SB/proj" \
+  || { echo "FAIL: machine-a's path missing from 'projects' output"; exit 1; }
+echo "$PROJECTS_OUT" | grep -q "machine-b: $SB/elsewhere/dev/proj" \
+  || { echo "FAIL: machine-b's path missing from 'projects' output"; exit 1; }
+
 echo "--- assert: memory arrived and AGENTS.md was generated ---"
 SLUG_B="$(cd "$SB/elsewhere/dev/proj" && node -e "import('$REPO/src/paths.mjs').then(m=>console.log(m.slugForPath(process.cwd())))")"
 test -f "$SB/home-b/.claude/projects/$SLUG_B/memory/db-choice.md" \
@@ -79,6 +92,20 @@ echo "--- assert: repeated pulls stay clean and produce no litter ---"
 ( cd "$SB/elsewhere/dev/proj" && node "$BIN" pull > /dev/null )
 find "$SB/drive" -name '*.conflict-*' | grep -q . \
   && { echo "FAIL: conflict artifact leaked into syncRoot"; exit 1; }
+
+echo "--- assert: --hook never turns an unlinked folder into a new project ---"
+# Reproduces a real incident: Claude Code hooks fire for every session
+# regardless of cwd, so an unrelated folder (Desktop, anything) must not get
+# silently projectified just because a session happened to start there.
+mkdir -p "$SB/unrelated-folder"
+( cd "$SB/unrelated-folder" && node "$BIN" push --hook )
+test -f "$SB/unrelated-folder/.claude-project-id" \
+  && { echo "FAIL: --hook created a marker in an unlinked folder"; exit 1; }
+
+echo "--- assert: --hook still syncs a folder that is already linked ---"
+OUT="$( cd "$SB/proj" && node "$BIN" push --hook )"
+echo "$OUT" | grep -qi "already in sync\|push\|pull" \
+  || { echo "FAIL: --hook blocked a sync in an already-linked project"; exit 1; }
 
 echo
 echo "SMOKE TEST PASSED"

@@ -29,6 +29,10 @@
         "title": "agent-sync: Run health checks"
       },
       {
+        "command": "agent-sync.projects",
+        "title": "agent-sync: Show all projects"
+      },
+      {
         "command": "agent-sync.link",
         "title": "agent-sync: Link this folder to a project"
       }

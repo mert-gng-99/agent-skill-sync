@@ -28,8 +28,11 @@ export function hookCommand() {
 export function buildHooks(existingSettings) {
   const settings = { ...existingSettings, hooks: { ...(existingSettings.hooks ?? {}) } };
   for (const [event, command] of [
-    ['SessionStart', `${hookCommand()} pull`],
-    ['Stop', `${hookCommand()} push`],
+    // --hook: a session can start in any folder, so this must never turn an
+    // arbitrary directory into a new tracked project on its own - see the
+    // --hook handling in bin/agent-sync.mjs.
+    ['SessionStart', `${hookCommand()} pull --hook`],
+    ['Stop', `${hookCommand()} push --hook`],
   ]) {
     const current = (settings.hooks[event] ?? []).filter(
       (entry) => !JSON.stringify(entry).includes(MARK)

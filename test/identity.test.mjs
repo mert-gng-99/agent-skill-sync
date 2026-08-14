@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { resolveIdentity, newProjectId, MARKER_FILENAME } from '../src/identity.mjs';
-import { upsertProject, loadRegistry, saveRegistry, registryPath } from '../src/registry.mjs';
+import { upsertProject, loadRegistry, saveRegistry, registryPath, formatRegistry } from '../src/registry.mjs';
 
 const registry = {
   version: 1,
@@ -66,6 +66,54 @@ test('upsertProject records this machine path without dropping the others', () =
 
 test('MARKER_FILENAME is .claude-project-id', () => {
   assert.equal(MARKER_FILENAME, '.claude-project-id');
+});
+
+test('formatRegistry says so when there are no projects yet', () => {
+  assert.deepEqual(formatRegistry({ version: 1, projects: {} }), ['No projects yet.']);
+});
+
+test('formatRegistry lists every machine path for a project', () => {
+  const reg = {
+    version: 1,
+    projects: {
+      'avukatsite-7f3a9c': {
+        name: 'avukatsite',
+        gitRemote: 'https://github.com/u/avukatsite.git',
+        paths: { macbook: '/Users/mert/avukatsite', pc1: 'C:\\Users\\mert\\avukatsite' },
+        lastSeen: '2026-08-14T10:00:00.000Z',
+      },
+    },
+  };
+  const lines = formatRegistry(reg);
+  assert.equal(lines[0], 'avukatsite (avukatsite-7f3a9c)');
+  assert.ok(lines.includes('  git: https://github.com/u/avukatsite.git'));
+  assert.ok(lines.includes('  macbook: /Users/mert/avukatsite'));
+  assert.ok(lines.includes('  pc1: C:\\Users\\mert\\avukatsite'));
+  assert.ok(lines.includes('  last seen: 2026-08-14T10:00:00.000Z'));
+});
+
+test('formatRegistry omits the git line when there is no remote', () => {
+  const reg = { version: 1, projects: { p1: { name: 'p1', paths: { m: '/x' } } } };
+  const lines = formatRegistry(reg);
+  assert.ok(!lines.some((l) => l.startsWith('  git:')));
+});
+
+test('formatRegistry sorts projects by name, for stable output', () => {
+  const reg = {
+    version: 1,
+    projects: {
+      z1: { name: 'zeta', paths: {} },
+      a1: { name: 'alpha', paths: {} },
+    },
+  };
+  const lines = formatRegistry(reg);
+  assert.ok(lines.indexOf('alpha (a1)') < lines.indexOf('zeta (z1)'));
+});
+
+test('formatRegistry flags a project with no recorded machine yet', () => {
+  const reg = { version: 1, projects: { p1: { name: 'p1', paths: {} } } };
+  const lines = formatRegistry(reg);
+  assert.ok(lines.includes('  (no machine paths recorded)'));
 });
 
 test('loadRegistry and saveRegistry round-trip to disk', async () => {

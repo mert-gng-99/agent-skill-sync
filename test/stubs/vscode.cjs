@@ -9,6 +9,7 @@
 const disposable = () => ({ dispose() {} });
 
 const registeredCommands = [];
+const outputLines = [];
 
 module.exports = {
   StatusBarAlignment: { Left: 1, Right: 2 },
@@ -19,8 +20,12 @@ module.exports = {
   },
   window: {
     createOutputChannel: () => ({
-      appendLine() {},
-      clear() {},
+      appendLine(line) {
+        outputLines.push(line);
+      },
+      clear() {
+        outputLines.length = 0;
+      },
       show() {},
       dispose() {},
     }),
@@ -57,4 +62,5 @@ module.exports = {
     onDidChangeConfiguration: () => disposable(),
   },
   __registeredCommands: registeredCommands,
+  __outputLines: outputLines,
 };

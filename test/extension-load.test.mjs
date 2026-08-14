@@ -31,12 +31,12 @@ test('the entry point loads the way the extension host loads it', () => {
   assert.equal(typeof extension.deactivate, 'function');
 });
 
-test('activate registers the three contributed commands', async () => {
+test('activate registers the four contributed commands', async () => {
   const context = { subscriptions: [] };
   await extension.activate(context);
 
   const ids = vscodeStub.__registeredCommands.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.sync']);
+  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.projects', 'agent-sync.sync']);
   assert.ok(context.subscriptions.length > 0, 'everything registered must be disposable');
 });
 
@@ -132,6 +132,40 @@ test('picking a known project from the QuickPick actually links it, not just sho
 
   vscodeStub.workspace.workspaceFolders = undefined;
   vscodeStub.window.showQuickPick = async () => undefined;
+});
+
+test('the "Show all projects" command prints the registry to the Output panel', async () => {
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-projects-root-'));
+  await fs.writeFile(
+    path.join(syncRoot, 'registry.json'),
+    JSON.stringify({
+      version: 1,
+      projects: { 'demo-abc123': { name: 'demo', paths: { macbook: '/x', pc1: 'C:\\x' } } },
+    })
+  );
+  const configDir = path.join(os.homedir(), '.agent-sync');
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(
+    path.join(configDir, 'config.json'),
+    JSON.stringify({
+      syncRoot,
+      machineId: 'test-machine',
+      targets: [],
+      syncTranscripts: false,
+      snapshotKeep: 20,
+    })
+  );
+
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  const handler = vscodeStub.__registeredCommands
+    .filter((c) => c.id === 'agent-sync.projects')
+    .at(-1).handler;
+  await handler();
+
+  assert.ok(vscodeStub.__outputLines.includes('demo (demo-abc123)'));
+  assert.ok(vscodeStub.__outputLines.includes('  macbook: /x'));
+  assert.ok(vscodeStub.__outputLines.includes('  pc1: C:\\x'));
 });
 
 async function seedConfig(syncRoot) {

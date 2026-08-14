@@ -27,6 +27,19 @@ test('installs a SessionStart pull and a Stop push', () => {
   assert.ok(JSON.stringify(settings.hooks.Stop).includes('push'));
 });
 
+test('the installed hook commands carry --hook, so they never create a new project', () => {
+  // Hooks fire for every Claude Code session regardless of cwd - a session
+  // opened in an arbitrary folder (Desktop, a client's repo, anywhere) must
+  // never turn that folder into a tracked project on its own. Only a marker
+  // already there means the hook is allowed to sync it. See --hook in
+  // bin/agent-sync.mjs.
+  const settings = buildHooks({});
+  const sessionStart = JSON.stringify(settings.hooks.SessionStart);
+  const stop = JSON.stringify(settings.hooks.Stop);
+  assert.match(sessionStart, /pull --hook/);
+  assert.match(stop, /push --hook/);
+});
+
 test('keeps hooks the user already had', () => {
   const existing = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo mine' }] }] } };
   const settings = buildHooks(existing);

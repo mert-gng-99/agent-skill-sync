@@ -13,9 +13,9 @@ const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.u
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const source = fs.readFileSync(path.join(root, 'extension', 'extension.cjs'), 'utf8');
 
-test('declares the three commands the README promises', () => {
+test('declares the four commands the README promises', () => {
   const ids = manifest.contributes.commands.map((c) => c.command).sort();
-  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.sync']);
+  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.projects', 'agent-sync.sync']);
 });
 
 test('activates on startup so window events can be observed', () => {

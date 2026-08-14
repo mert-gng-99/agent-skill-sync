@@ -31,6 +31,7 @@ function engine() {
       readMarker: project.readMarker,
       runDoctor: doctor.runDoctor,
       loadRegistry: registry.loadRegistry,
+      formatRegistry: registry.formatRegistry,
     }));
   }
   return enginePromise;
@@ -222,6 +223,16 @@ async function activate(context) {
       for (const c of checks) {
         output.appendLine(`${c.status.toUpperCase()}  ${c.name}: ${c.details}`);
       }
+      output.show();
+    }),
+    // Every project agent-sync knows about, and which machines have it - all
+    // of this already lives in registry.json, this just prints it.
+    vscode.commands.registerCommand('agent-sync.projects', async () => {
+      const { loadConfig, loadRegistry, formatRegistry } = await engine();
+      const config = await loadConfig();
+      const registry = await loadRegistry(config.syncRoot);
+      output.clear();
+      for (const line of formatRegistry(registry)) output.appendLine(line);
       output.show();
     }),
     // Shows the resolved project (like the old version) AND lets the user

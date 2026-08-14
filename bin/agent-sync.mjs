@@ -4,7 +4,8 @@ import { loadConfig } from '../src/config.mjs';
 import { runSync, syncPairs } from '../src/sync.mjs';
 import { runDoctor } from '../src/doctor.mjs';
 import { init } from '../src/init.mjs';
-import { ensureIdentity, linkProject, forgetFile } from '../src/project.mjs';
+import { ensureIdentity, linkProject, forgetFile, readMarker } from '../src/project.mjs';
+import { loadRegistry, formatRegistry } from '../src/registry.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
 import { runWrapped } from '../src/run.mjs';
 
@@ -14,11 +15,14 @@ const HELP = `agent-sync <command> [--dry-run] [--force]
   pull | push          Synchronise skills, memory and shared settings
   status               Show this machine, this project, targets and pending changes
   doctor               Health checks: conflicts, registry, secrets
+  projects             List every known project and which machines have it
   link <project-id>    Bind the current directory to an existing project
   forget <path>        Delete a file locally and remotely on purpose
   run <command...>     Pull, run the command, then push when it exits
 
   --force              Push files even when they look like they contain secrets
+  --hook               For automated callers (hooks): skip a folder with no
+                        project marker yet, instead of creating a new project
 `;
 
 // Hooks and the VS Code extension call this binary. It must never take a
@@ -29,7 +33,8 @@ async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const dryRun = rest.includes('--dry-run');
   const force = rest.includes('--force');
-  const args = rest.filter((a) => a !== '--dry-run' && a !== '--force');
+  const hook = rest.includes('--hook');
+  const args = rest.filter((a) => a !== '--dry-run' && a !== '--force' && a !== '--hook');
 
   if (!command || command === 'help' || command === '--help') {
     process.stdout.write(HELP);
@@ -42,6 +47,14 @@ async function main() {
   switch (command) {
     case 'pull':
     case 'push': {
+      // Claude Code hooks fire for every session regardless of cwd - a session
+      // opened in an arbitrary folder (Desktop, a client's repo, anywhere)
+      // must never get silently turned into a new tracked project. Skip
+      // instead of creating one; a real `agent-sync push` typed by hand
+      // still may. Same principle as isUnsyncableDirectory, for a folder
+      // that just happens not to be linked yet rather than being $HOME.
+      if (hook && !(await readMarker(process.cwd()))) return 0;
+
       const identity = await ensureIdentity(config, process.cwd());
       if (!identity.id) {
         process.stderr.write('agent-sync: the home directory is not a project, nothing to sync\n');
@@ -104,6 +117,11 @@ async function main() {
         process.stdout.write(`${c.status.toUpperCase().padEnd(5)} ${c.name}: ${c.details}\n`);
       }
       return checks.some((c) => c.status === 'fail') ? 1 : 0;
+    }
+    case 'projects': {
+      const registry = await loadRegistry(config.syncRoot);
+      for (const line of formatRegistry(registry)) process.stdout.write(`${line}\n`);
+      return 0;
     }
     case 'link':
       return linkProject(config, process.cwd(), args[0]);

@@ -39,6 +39,7 @@ English: [README.md](README.md)
 | `pull` \| `push` | Skill'leri, hafızayı ve paylaşılan ayarları senkronize eder |
 | `status` | Makine, mevcut proje, hedefler ve bekleyen değişiklikleri gösterir |
 | `doctor` | Sağlık kontrolleri: çakışmalar, registry tutarlılığı, sır taraması |
+| `projects` | Bilinen tüm projeleri ve hangi makinelerde olduklarını listeler |
 | `link <project-id>` | Mevcut çalışma dizinini var olan bir proje kimliğine bağlar |
 | `forget <path>` | Bir dosyayı hem yerel hem de uzak depodan bilinçli olarak siler |
 | `run <command...>` | Komut öncesi pull yapar, komutu çalıştırır, çıkışta push yapar |
@@ -81,6 +82,7 @@ VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 **Komutlar** (`Cmd/Ctrl + Shift + P` → "agent-sync" ara):
 - `agent-sync: Sync now` elle pull+push çalıştırır.
 - `agent-sync: Run health checks` `doctor` çıktısını Output panelinde gösterir.
+- `agent-sync: Show all projects` `agent-sync`'in bildiği tüm projeleri, her birinin makinelerindeki yoluyla birlikte listeler. CLI'daki `agent-sync projects` ile aynı veri, doğrudan `registry.json`'dan okunur.
 - `agent-sync: Link this folder to a project` bu klasörün şu an hangi projeye çözümlendiğini (ve nasıl eşleştiğini) gösterir, **ve bilinen projelerden birini seçmene veya yeni bir proje kimliği oluşturmana izin verir**. Otomatik eşleştirme yanlış çıktıysa (örneğin jenerik bir klasör adı iki projeyle çakıştıysa) buradan düzeltirsin. Bu, CLI'daki `agent-sync link <id>`'in arayüzden karşılığıdır.
 
 **Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir, `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur. Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.

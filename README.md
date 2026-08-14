@@ -39,6 +39,7 @@ Türkçe: [README.tr.md](README.tr.md)
 | `pull` \| `push` | Syncs skills, memory, and shared settings |
 | `status` | Shows the machine, the project, the targets, and pending changes |
 | `doctor` | Runs health checks: conflicts, registry problems, secret scan |
+| `projects` | Lists every known project and which machines have it |
 | `link <project-id>` | Connects this folder to an existing project ID by hand |
 | `forget <path>` | Deletes a file on purpose, both locally and remotely |
 | `run <command...>` | Pulls first, runs your command, then pushes when it ends |
@@ -81,6 +82,7 @@ Restart VS Code. Then `agent-sync` shows up in the status bar.
 **Commands** (press `Cmd/Ctrl + Shift + P`, then search "agent-sync"):
 - `agent-sync: Sync now` runs a pull and a push by hand.
 - `agent-sync: Run health checks` shows `doctor` output in the Output panel.
+- `agent-sync: Show all projects` lists every project `agent-sync` knows about, with the path it has on each of your machines. Same data as `agent-sync projects` on the CLI, read straight from `registry.json`.
 - `agent-sync: Link this folder to a project` shows which project this folder matches right now, and how. It also lets you pick a different known project, or make a new one. Use it when the automatic match picks the wrong project, for example when two projects share a folder name. It does the same job as `agent-sync link <id>` on the CLI.
 
 **Settings** (press `Cmd/Ctrl + ,`, then search "agent-sync"): you can set `syncRoot`, `machineId`, and `targets` here, so you never need to hand edit `config.json`. `targets` is a pick list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free text. If you leave a field empty, `agent-sync` keeps the value already in `config.json`. The Settings screen only changes the fields you actually touch.
