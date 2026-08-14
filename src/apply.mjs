@@ -46,8 +46,12 @@ export async function applyPlan(plan, { localRoot, remoteRoot, machineId, dryRun
   const conflicts = [];
   for (const { relPath, action } of plan) {
     if (dryRun) {
-      if (action === ACTION.CONFLICT) conflicts.push({ relPath, keptAs: null });
-      else applied.push({ relPath, action, hash: null });
+      if (action === ACTION.CONFLICT) {
+        // Preview the real name, not null - the CLI prints this verbatim.
+        conflicts.push({ relPath, keptAs: conflictName(relPath, machineId, new Date()) });
+      } else {
+        applied.push({ relPath, action, hash: null });
+      }
       continue;
     }
     if (action === ACTION.PUSH) {

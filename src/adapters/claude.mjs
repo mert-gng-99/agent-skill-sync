@@ -10,6 +10,7 @@ import {
   stagedTranscriptsDir,
 } from '../paths.mjs';
 import { mergeShared, extractShared } from '../settings-merge.mjs';
+import { mirrorDir } from '../mirror.mjs';
 
 const MARK = 'agent-sync';
 
@@ -83,16 +84,14 @@ export const claude = {
    * Without this the staged tree would stay empty and nothing would ever sync.
    */
   async collect({ projectId, cwd, config }) {
-    await fs.mkdir(stagedMemoryDir(projectId), { recursive: true });
-    await fs.mkdir(stagedSkillsDir(), { recursive: true });
     await fs.mkdir(stagedSharedDir(), { recursive: true });
 
-    await fs
-      .cp(this.projectMemoryDir(cwd), stagedMemoryDir(projectId), { recursive: true })
-      .catch(() => {});
-    await fs
-      .cp(path.join(claudeHome(), 'skills'), stagedSkillsDir(), { recursive: true })
-      .catch(() => {});
+    // Mirrored, not overlaid: a memory note or skill folder the user deleted
+    // must actually disappear from the staged copy, or it comes right back
+    // on the next sync (see mirrorDir).
+    await mirrorDir(this.projectMemoryDir(cwd), stagedMemoryDir(projectId));
+    await mirrorDir(path.join(claudeHome(), 'skills'), stagedSkillsDir());
+
     await fs
       .cp(this.globalInstructionsPath(), path.join(stagedSharedDir(), 'CLAUDE.md'))
       .catch(() => {});

@@ -69,10 +69,11 @@ export async function ensureIdentity(config, cwd, { write = true } = {}) {
     return { id: null, source: 'home-directory', ambiguous: false };
   }
   const registry = await loadRegistry(config.syncRoot);
+  const gitRemote = await readGitRemote(cwd);
   const identity = resolveIdentity({
     folderName: path.basename(cwd),
     marker: await readMarker(cwd),
-    gitRemote: await readGitRemote(cwd),
+    gitRemote,
     registry,
   });
 
@@ -84,7 +85,7 @@ export async function ensureIdentity(config, cwd, { write = true } = {}) {
       upsertProject(registry, {
         id: identity.id,
         name: path.basename(cwd),
-        gitRemote: await readGitRemote(cwd),
+        gitRemote,
         machineId: config.machineId,
         absPath: cwd,
       })

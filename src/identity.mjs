@@ -18,9 +18,6 @@ export function newProjectId(name) {
 export function resolveIdentity({ folderName, marker, gitRemote, registry }) {
   const entries = Object.entries(registry.projects ?? {});
 
-  if (marker && registry.projects?.[marker]) {
-    return { id: marker, source: 'marker', ambiguous: false };
-  }
   if (marker) return { id: marker, source: 'marker', ambiguous: false };
 
   if (gitRemote) {

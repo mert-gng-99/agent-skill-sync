@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { ADAPTERS, byId, selectAdapters, planWrites, applyAdapters } from '../src/adapters/index.mjs';
 import { claude } from '../src/adapters/claude.mjs';
-import { slugForPath, stagedTranscriptsDir, stagedSkillsDir } from '../src/paths.mjs';
+import { slugForPath, stagedTranscriptsDir, stagedSkillsDir, stagedMemoryDir } from '../src/paths.mjs';
 import { useIsolatedHome } from './helpers/isolated-home.mjs';
 
 useIsolatedHome();
@@ -190,4 +190,41 @@ test('applyAdapters delivers skill folders where Codex CLI actually looks for th
 
   const landed = await fs.readFile(path.join(cwd, '.agents', 'skills', 'demo-skill', 'SKILL.md'), 'utf8');
   assert.match(landed, /demo-skill/);
+});
+
+test('collect drops a memory note the user deleted, instead of resurrecting it forever', async () => {
+  // Reproduces a real incident: fs.cp only overlays, so a note deleted from
+  // Claude's memory dir stayed in the staged copy forever and got written
+  // straight back on every later sync, even with no other machine involved.
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-collect-delete-'));
+  const localMemoryDir = path.join(os.homedir(), '.claude', 'projects', slugForPath(cwd), 'memory');
+  await fs.mkdir(localMemoryDir, { recursive: true });
+  await fs.writeFile(path.join(localMemoryDir, 'keep.md'), 'keep');
+  await fs.writeFile(path.join(localMemoryDir, 'delete-me.md'), 'gone soon');
+
+  await claude.collect({ projectId: 'proj-delete-1', cwd, config: {} });
+  assert.deepEqual(
+    (await fs.readdir(stagedMemoryDir('proj-delete-1'))).sort(),
+    ['delete-me.md', 'keep.md']
+  );
+
+  await fs.rm(path.join(localMemoryDir, 'delete-me.md'));
+  await claude.collect({ projectId: 'proj-delete-1', cwd, config: {} });
+
+  assert.deepEqual(await fs.readdir(stagedMemoryDir('proj-delete-1')), ['keep.md']);
+});
+
+test('collect drops a skill folder the user removed', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-collect-skill-delete-'));
+  const skillsDir = path.join(os.homedir(), '.claude', 'skills');
+  await fs.mkdir(path.join(skillsDir, 'old-skill'), { recursive: true });
+  await fs.writeFile(path.join(skillsDir, 'old-skill', 'SKILL.md'), '# old');
+
+  await claude.collect({ projectId: 'proj-delete-2', cwd, config: {} });
+  assert.ok((await fs.readdir(stagedSkillsDir())).includes('old-skill'));
+
+  await fs.rm(path.join(skillsDir, 'old-skill'), { recursive: true });
+  await claude.collect({ projectId: 'proj-delete-2', cwd, config: {} });
+
+  assert.ok(!(await fs.readdir(stagedSkillsDir())).includes('old-skill'));
 });

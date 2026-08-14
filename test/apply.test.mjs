@@ -55,3 +55,13 @@ test('dryRun touches nothing', async () => {
   });
   await assert.rejects(() => fs.readFile(path.join(remoteRoot, 'a.md')));
 });
+
+test('dryRun still previews a real conflict filename, not null', async () => {
+  // Confirmed live: `agent-sync push --dry-run` printed
+  // "your version kept as null" because this path never computed a name.
+  const { localRoot, remoteRoot } = await roots();
+  const res = await applyPlan([{ relPath: 'n.md', action: ACTION.CONFLICT }], {
+    localRoot, remoteRoot, machineId: 'macbook', dryRun: true,
+  });
+  assert.match(res.conflicts[0].keptAs, /^n\.conflict-macbook-\d{8}-\d{4}\.md$/);
+});
