@@ -26,6 +26,7 @@ Türkçe: [README.tr.md](README.tr.md)
    ```bash
    node bin/agent-sync.mjs init
    ```
+   If you use Claude Code in a terminal, not the VS Code extension, `init` offers to install two hooks in `~/.claude/settings.json`: one that runs `pull` when a session starts, one that runs `push` when it ends. These hook commands always carry `--hook` (see section 4), so a session that happens to start in an unrelated folder, like your desktop, never turns it into a new tracked project on its own.
 3. Run the tests.
    - Unit tests: `npm test`
    - End to end test: `./scripts/smoke-test.sh` (this runs inside a temporary `$HOME` folder, so it never touches your real `~/.claude` or `~/.agent-sync` folders)
@@ -44,6 +45,7 @@ Türkçe: [README.tr.md](README.tr.md)
 | `forget <path>` | Deletes a file on purpose, both locally and remotely |
 | `run <command...>` | Pulls first, runs your command, then pushes when it ends |
 | `--force` | Pushes files even when they look like they hold a secret |
+| `--hook` | For automated callers, like the Claude Code hooks from `init` (see section 3): skips a folder with no project marker yet, instead of creating a new project |
 
 ### 5. Supported tools
 

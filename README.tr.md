@@ -26,6 +26,7 @@ English: [README.md](README.md)
    ```bash
    node bin/agent-sync.mjs init
    ```
+   Claude Code'u VS Code eklentisi yerine terminalden kullanıyorsanız `init`, `~/.claude/settings.json` içine iki hook kurmayı önerir: biri oturum başlarken `pull`, diğeri oturum biterken `push` çalıştırır. Bu hook komutları her zaman `--hook` bayrağını taşır (bkz. bölüm 4), böylece bir oturumun rastgele bir klasörde (örneğin masaüstünde) başlaması, o klasörü kendiliğinden yeni bir projeye çevirmez.
 3. Testleri çalıştırmak için:
    - Birim testleri: `npm test`
    - Uçtan uca smoke testi: `./scripts/smoke-test.sh` (izole geçici bir `HOME` dizininde çalıştığından gerçek bilgisayarınızdaki dizinlere dokunmaz).
@@ -44,6 +45,7 @@ English: [README.md](README.md)
 | `forget <path>` | Bir dosyayı hem yerel hem de uzak depodan bilinçli olarak siler |
 | `run <command...>` | Komut öncesi pull yapar, komutu çalıştırır, çıkışta push yapar |
 | `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
+| `--hook` | Yalnızca otomatik çağıranlar için, örneğin `init`'in kurduğu Claude Code hook'ları (bkz. bölüm 3): henüz proje marker'ı olmayan bir klasörü, yeni proje oluşturmak yerine atlar |
 
 ### 5. Desteklenen Araçlar
 
