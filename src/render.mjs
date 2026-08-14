@@ -51,3 +51,13 @@ export function upsertBlock(existingText, blockBody) {
   const sep = existingText.endsWith('\n') ? '\n' : '\n\n';
   return existingText + sep + block;
 }
+
+/**
+ * Prepends a YAML frontmatter block, for tools (Cursor) that need one to load
+ * the file at all. Skipped when the file already starts with its own
+ * frontmatter, so a hand-edited description or globs is never clobbered.
+ */
+export function withFrontmatter(text, frontmatter) {
+  if (!frontmatter || text.startsWith('---\n')) return text;
+  return frontmatter + text;
+}

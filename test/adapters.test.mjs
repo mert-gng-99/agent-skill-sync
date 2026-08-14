@@ -192,6 +192,42 @@ test('applyAdapters delivers skill folders where Codex CLI actually looks for th
   assert.match(landed, /demo-skill/);
 });
 
+test('the file written for Cursor starts with alwaysApply frontmatter', async () => {
+  // Cursor ignores a .mdc rule file with no frontmatter (confirmed against
+  // https://cursor.com/docs/rules, 2026-08) - without this the memory digest
+  // would land on disk but Cursor would never actually load it.
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-cursor-frontmatter-'));
+  await applyAdapters({ config: { targets: ['cursor'] }, projectId: 'p', cwd, dryRun: false });
+
+  const content = await fs.readFile(path.join(cwd, '.cursor', 'rules', 'agent-sync.mdc'), 'utf8');
+  assert.ok(content.startsWith('---\n'));
+  assert.match(content, /alwaysApply: true/);
+  assert.match(content, /agent-sync:begin/);
+});
+
+test('gemini and aider are plain markdown, no frontmatter added', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-no-frontmatter-'));
+  await applyAdapters({ config: { targets: ['gemini', 'aider'] }, projectId: 'p', cwd, dryRun: false });
+
+  const gemini = await fs.readFile(path.join(cwd, 'GEMINI.md'), 'utf8');
+  const aider = await fs.readFile(path.join(cwd, 'CONVENTIONS.md'), 'utf8');
+  assert.ok(!gemini.startsWith('---\n'));
+  assert.ok(!aider.startsWith('---\n'));
+});
+
+test('a hand-written Cursor frontmatter (custom description or globs) is never overwritten', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-cursor-custom-frontmatter-'));
+  const file = path.join(cwd, '.cursor', 'rules', 'agent-sync.mdc');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, '---\ndescription: my own rule\nglobs: "*.ts"\n---\n\nold body\n');
+
+  await applyAdapters({ config: { targets: ['cursor'] }, projectId: 'p', cwd, dryRun: false });
+
+  const content = await fs.readFile(file, 'utf8');
+  assert.match(content, /description: my own rule/);
+  assert.match(content, /globs: "\*\.ts"/);
+});
+
 test('collect drops a memory note the user deleted, instead of resurrecting it forever', async () => {
   // Reproduces a real incident: fs.cp only overlays, so a note deleted from
   // Claude's memory dir stayed in the staged copy forever and got written

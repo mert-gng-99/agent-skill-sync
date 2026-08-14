@@ -92,6 +92,8 @@ Sonra VS Code eklentisini derle ve kur: `npx @vscode/vsce package --allow-missin
 
 Skill'lerin (`~/.claude/skills/`) tam içeriği (`SKILL.md` + referanslar/scriptler) yalnızca **Claude Code ve Codex CLI**'a gerçek dosya olarak dağıtılıyor, çünkü ikisi de aynı `SKILL.md` formatını okuyor (Codex, [openai/codex](https://learn.chatgpt.com/docs/build-skills) belgelerine göre `.agents/skills/`'ı proje kökünde arıyor). Diğer araçlarda (`opencode`, `gemini`, `aider`, `cursor`) skill'ler yalnızca isim olarak `AGENTS.md`/`GEMINI.md` içinde listelenir, otomatik tetiklenmez. Bu araçların doğrulanmış bir skill mekanizması yok.
 
+Cursor'ın `.cursor/rules/agent-sync.mdc` dosyasının otomatik yüklenmesi için küçük bir YAML başlığı (`alwaysApply: true`) gerekiyor, bkz. [Cursor'ın dokümanı](https://cursor.com/docs/rules). `agent-sync` bu başlığı kendisi ekliyor. Dosyada zaten kendi başlığınız varsa (örneğin elle yazdığınız bir `description` veya `globs`), `agent-sync` ona dokunmaz, yalnızca altındaki hafıza bloğunu günceller.
+
 ### 8. Proje Kimliği (Path-Independent Identity)
 Aynı proje macOS'ta `/Users/mert/Desktop/app`, Windows'ta `C:\Users\mert\Desktop\app` olsa dahi `agent-sync` projeyi 4 adımlı öncelik sırasıyla tanır:
 1. Proje kökündeki `.claude-project-id` marker dosyası.

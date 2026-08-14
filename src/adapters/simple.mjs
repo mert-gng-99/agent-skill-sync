@@ -3,10 +3,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 /** Builds an adapter for a tool that reads one markdown file per project. */
-export function singleFileAdapter({ id, label, projectFile, globalFile, detectPath }) {
+export function singleFileAdapter({ id, label, projectFile, globalFile, detectPath, frontmatter }) {
   return {
     id,
     label,
+    frontmatter,
     async detect() {
       if (!detectPath) return false;
       return fs

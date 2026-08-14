@@ -4,7 +4,7 @@ import { claude } from './claude.mjs';
 import { codex, opencode } from './agents-md.mjs';
 import { singleFileAdapter } from './simple.mjs';
 import { stagedMemoryDir, stagedSkillsDir, stagedSharedDir } from '../paths.mjs';
-import { renderDigest, upsertBlock } from '../render.mjs';
+import { renderDigest, upsertBlock, withFrontmatter } from '../render.mjs';
 
 const gemini = singleFileAdapter({
   id: 'gemini',
@@ -22,12 +22,18 @@ const aider = singleFileAdapter({
   detectPath: '.aider.conf.yml',
 });
 
+// Cursor ignores a .mdc rule file with no YAML frontmatter - confirmed against
+// https://cursor.com/docs/rules (2026-08). alwaysApply: true is what makes it
+// load automatically, the same way AGENTS.md/GEMINI.md do for other tools.
+const CURSOR_FRONTMATTER = '---\ndescription: Context and memory synced by agent-sync\nalwaysApply: true\n---\n\n';
+
 const cursor = singleFileAdapter({
   id: 'cursor',
   label: 'Cursor',
   projectFile: '.cursor/rules/agent-sync.mdc',
   globalFile: null,
   detectPath: '.cursor',
+  frontmatter: CURSOR_FRONTMATTER,
 });
 
 export const ADAPTERS = [claude, codex, opencode, gemini, aider, cursor];
@@ -107,7 +113,9 @@ export async function applyAdapters({ config, projectId, cwd, dryRun }) {
     } else {
       await fs.mkdir(path.dirname(write.file), { recursive: true });
       const existing = await fs.readFile(write.file, 'utf8').catch(() => '');
-      await fs.writeFile(write.file, upsertBlock(existing, body), 'utf8');
+      const adapter = adapters.find((a) => a.id === write.adapter);
+      const merged = withFrontmatter(upsertBlock(existing, body), adapter?.frontmatter);
+      await fs.writeFile(write.file, merged, 'utf8');
     }
     written.push({ adapter: write.adapter, file: write.file });
   }

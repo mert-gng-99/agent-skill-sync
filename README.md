@@ -92,6 +92,8 @@ Then build and install the VS Code extension: `npx @vscode/vsce package --allow-
 
 `agent-sync` sends the full content of `~/.claude/skills/` (`SKILL.md` plus references and scripts) as real files only to **Claude Code and Codex CLI**. Both tools read the same `SKILL.md` format. Codex looks for skills under `.agents/skills/` in the project root, per [OpenAI's docs](https://learn.chatgpt.com/docs/build-skills). For the other tools (`opencode`, `gemini`, `aider`, `cursor`), `agent-sync` only lists skill names inside `AGENTS.md` or `GEMINI.md`. These tools do not auto load skills, because they have no confirmed skill system.
 
+Cursor's `.cursor/rules/agent-sync.mdc` file needs a small YAML header (`alwaysApply: true`) to be picked up automatically, per [Cursor's docs](https://cursor.com/docs/rules). `agent-sync` adds this header on its own. If that file already has its own header, for example a custom `description` or `globs` you wrote by hand, `agent-sync` leaves it alone and only updates the memory block below it.
+
 ### 8. Path independent project identity
 The same project can sit at `/Users/mert/Desktop/app` on macOS and `C:\Users\mert\Desktop\app` on Windows. `agent-sync` still finds it, using 4 steps, in this order.
 1. A `.claude-project-id` marker file in the project root.

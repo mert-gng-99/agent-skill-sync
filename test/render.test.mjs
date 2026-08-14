@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BEGIN, END, renderDigest, upsertBlock } from '../src/render.mjs';
+import { BEGIN, END, renderDigest, upsertBlock, withFrontmatter } from '../src/render.mjs';
 
 test('digest lists every memory file under a heading', () => {
   const out = renderDigest({
@@ -52,4 +52,21 @@ test('upsert on an empty file produces just the block', () => {
 test('upsert is idempotent', () => {
   const once = upsertBlock('keep\n', 'X');
   assert.equal(upsertBlock(once, 'X'), once);
+});
+
+test('withFrontmatter prepends it when the file has none', () => {
+  const out = withFrontmatter('body text\n', '---\nalwaysApply: true\n---\n\n');
+  assert.ok(out.startsWith('---\n'));
+  assert.match(out, /alwaysApply: true/);
+  assert.match(out, /body text/);
+});
+
+test('withFrontmatter leaves a file that already starts with --- alone', () => {
+  const existing = '---\ndescription: custom\n---\n\nbody\n';
+  assert.equal(withFrontmatter(existing, '---\nalwaysApply: true\n---\n\n'), existing);
+});
+
+test('withFrontmatter does nothing when no frontmatter is given', () => {
+  assert.equal(withFrontmatter('body text\n', null), 'body text\n');
+  assert.equal(withFrontmatter('body text\n', undefined), 'body text\n');
 });
