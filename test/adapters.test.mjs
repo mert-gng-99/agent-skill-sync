@@ -161,12 +161,67 @@ test('codex exposes a project skills directory Codex CLI actually reads', () => 
   assert.equal(byId('codex').projectSkillsDir(cwd), path.join(cwd, '.agents', 'skills'));
 });
 
+test('claude exposes a global skills directory, not a per-project one', () => {
+  // Unlike codex's .agents/skills, ~/.claude/skills is shared by every
+  // project on the machine - two different cwds must resolve to the same
+  // path so planWrites's dedupe-by-path collapses them into a single write.
+  const cwdA = path.join(path.sep, 'proj-a');
+  const cwdB = path.join(path.sep, 'proj-b');
+  const dir = byId('claude').projectSkillsDir(cwdA);
+  assert.equal(dir, path.join(os.homedir(), '.claude', 'skills'));
+  assert.equal(dir, byId('claude').projectSkillsDir(cwdB));
+});
+
 test('adapters without confirmed skill support declare none', () => {
-  // Only codex is confirmed (see above). Claiming this for the others without
-  // verifying would silently write files nothing reads.
+  // Only claude and codex are confirmed (see above). Claiming this for the
+  // others without verifying would silently write files nothing reads.
   for (const id of ['opencode', 'gemini', 'aider', 'cursor']) {
     assert.equal(typeof byId(id).projectSkillsDir, 'undefined', `${id} must not claim skill support`);
   }
+});
+
+test('applyAdapters distributes staged skills into ~/.claude/skills end to end', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-skills-e2e-'));
+  await fs.mkdir(path.join(stagedSkillsDir(), 'hallmark'), { recursive: true });
+  await fs.writeFile(path.join(stagedSkillsDir(), 'hallmark', 'SKILL.md'), '# hallmark');
+
+  await applyAdapters({
+    config: { targets: ['claude'] },
+    projectId: 'proj-skills-e2e-1',
+    cwd,
+    dryRun: false,
+  });
+
+  const content = await fs.readFile(
+    path.join(os.homedir(), '.claude', 'skills', 'hallmark', 'SKILL.md'),
+    'utf8'
+  );
+  assert.equal(content, '# hallmark');
+});
+
+test('applyAdapters skill distribution is an overlay: pre-existing unmanaged skills survive', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-skills-overlay-'));
+  const localSkills = path.join(os.homedir(), '.claude', 'skills');
+  await fs.mkdir(path.join(localSkills, 'hand-written'), { recursive: true });
+  await fs.writeFile(path.join(localSkills, 'hand-written', 'SKILL.md'), '# not managed by sync');
+  await fs.mkdir(path.join(stagedSkillsDir(), 'synced'), { recursive: true });
+  await fs.writeFile(path.join(stagedSkillsDir(), 'synced', 'SKILL.md'), '# synced');
+
+  await applyAdapters({
+    config: { targets: ['claude'] },
+    projectId: 'proj-skills-overlay-1',
+    cwd,
+    dryRun: false,
+  });
+
+  assert.equal(
+    await fs.readFile(path.join(localSkills, 'hand-written', 'SKILL.md'), 'utf8'),
+    '# not managed by sync'
+  );
+  assert.equal(
+    await fs.readFile(path.join(localSkills, 'synced', 'SKILL.md'), 'utf8'),
+    '# synced'
+  );
 });
 
 test('planWrites includes a skills-dir entry only for codex', () => {

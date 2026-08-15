@@ -61,6 +61,12 @@ export const claude = {
     // Claude reads the memory directory directly, so no digest file is needed.
     return null;
   },
+  // Unlike codex's .agents/skills, Claude Code's skill directory is global
+  // (~/.claude/skills), not per-project - the cwd argument is accepted only
+  // to match the shape planWrites calls, and intentionally ignored.
+  projectSkillsDir() {
+    return path.join(claudeHome(), 'skills');
+  },
   async installHooks() {
     const settingsPath = path.join(claudeHome(), 'settings.json');
     const existing = JSON.parse(await fs.readFile(settingsPath, 'utf8').catch(() => '{}'));

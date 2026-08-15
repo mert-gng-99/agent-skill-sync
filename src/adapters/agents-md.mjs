@@ -7,13 +7,14 @@ import { singleFileAdapter } from './simple.mjs';
  * AGENTS.md is the de-facto cross-tool convention. Codex and OpenCode both
  * read it, so they share this base and are deduplicated at write time.
  *
- * Codex additionally, and uniquely among our adapters, has a confirmed skill
- * mechanism: it loads SKILL.md content from .agents/skills/ at the repo root
- * (also checks $HOME/.agents/skills and a couple of other locations), per
- * https://learn.chatgpt.com/docs/build-skills. That is why codex is written
- * out by hand here instead of going through the singleFileAdapter factory -
- * projectSkillsDir has no equivalent on opencode/gemini/aider/cursor, and
- * none of them should claim it without the same kind of verification.
+ * Codex additionally has a confirmed skill mechanism (the other one being
+ * Claude, handled in claude.mjs): it loads SKILL.md content from
+ * .agents/skills/ at the repo root (also checks $HOME/.agents/skills and a
+ * couple of other locations), per https://learn.chatgpt.com/docs/build-skills.
+ * That is why codex is written out by hand here instead of going through the
+ * singleFileAdapter factory - projectSkillsDir has no equivalent on
+ * opencode/gemini/aider/cursor, and none of them should claim it without the
+ * same kind of verification.
  */
 export const codex = {
   id: 'codex',
