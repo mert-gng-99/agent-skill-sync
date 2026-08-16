@@ -199,84 +199,116 @@ async function sync({ silent, direction = 'both', requireExisting = false }) {
   }
 }
 
+function doSync() {
+  return sync({ silent: false, direction: 'both' });
+}
+
+async function doDoctor() {
+  const { loadConfig, runDoctor, syncPairs } = await engine();
+  const config = await loadConfig();
+  const checks = await runDoctor({
+    syncRoot: config.syncRoot,
+    localRoots: syncPairs(config).map((p) => ({ dir: p.localDir })),
+  });
+  output.clear();
+  for (const c of checks) {
+    output.appendLine(`${c.status.toUpperCase()}  ${c.name}: ${c.details}`);
+  }
+  output.show();
+}
+
+// Every project agent-sync knows about, and which machines have it - all of
+// this already lives in registry.json, this just prints it.
+async function doProjects() {
+  const { loadConfig, loadRegistry, formatRegistry } = await engine();
+  const config = await loadConfig();
+  const registry = await loadRegistry(config.syncRoot);
+  output.clear();
+  for (const line of formatRegistry(registry)) output.appendLine(line);
+  output.show();
+}
+
+// Shows the resolved project (like the old version) AND lets the user pick a
+// different one from the registry, or start a fresh one - the command was
+// named "Link this folder to a project" but used to only display a guess,
+// with no way to act on it if the guess was wrong.
+async function doLink() {
+  const cwd = workspaceRoot();
+  if (!cwd) {
+    vscode.window.showWarningMessage('agent-sync: open a folder first.');
+    return;
+  }
+  const { loadConfig, ensureIdentity, loadRegistry, linkProject } = await engine();
+  const config = await loadConfig();
+  const current = await ensureIdentity(config, cwd, { write: false });
+  const registry = await loadRegistry(config.syncRoot);
+
+  const createNew = { label: '$(add) Create a new project id for this folder', id: null };
+  const known = Object.entries(registry.projects).map(([id, p]) => ({
+    label: p.name,
+    description: id === current.id ? `${id} - current guess` : id,
+    id,
+  }));
+
+  const picked = await vscode.window.showQuickPick([createNew, ...known], {
+    placeHolder: current.id
+      ? `Currently resolves to ${current.id} (matched by ${current.source}) - pick a different project, or create new`
+      : 'No project matched yet - pick one, or create new',
+  });
+  if (!picked) return;
+
+  if (picked.id === null) {
+    const identity = await ensureIdentity(config, cwd, { write: true });
+    vscode.window.showInformationMessage(`Linked this folder to a new project: ${identity.id}`);
+  } else {
+    const code = await linkProject(config, cwd, picked.id);
+    if (code === 0) {
+      vscode.window.showInformationMessage(`Linked this folder to ${picked.id}.`);
+    } else {
+      vscode.window.showErrorMessage(`agent-sync: could not link to ${picked.id}.`);
+    }
+  }
+  sync({ silent: false, direction: 'both' });
+}
+
+function openSettings() {
+  return vscode.commands.executeCommand('workbench.action.openSettings', 'agent-sync');
+}
+
+// What the status bar item is bound to. A single click used to run "Sync
+// now" directly - reasonable for the sync itself, but it meant there was no
+// way to reach the other commands (Settings included) without going through
+// the Command Palette, which most people never discover. This picker is the
+// menu that click now opens instead.
+async function showMenu() {
+  const picked = await vscode.window.showQuickPick(
+    [
+      { label: '$(sync) Sync now', action: doSync },
+      { label: '$(pulse) Run health checks', action: doDoctor },
+      { label: '$(list-tree) Show all projects', action: doProjects },
+      { label: '$(link) Link this folder to a project', action: doLink },
+      { label: '$(gear) Open Settings', action: openSettings },
+    ],
+    { placeHolder: 'agent-sync' }
+  );
+  if (picked) await picked.action();
+}
+
 async function activate(context) {
   output = vscode.window.createOutputChannel('agent-sync');
   statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusItem.command = 'agent-sync.sync';
+  statusItem.command = 'agent-sync.menu';
   statusItem.text = '$(sync) agent-sync';
   statusItem.show();
 
   context.subscriptions.push(
     statusItem,
     output,
-    vscode.commands.registerCommand('agent-sync.sync', () =>
-      sync({ silent: false, direction: 'both' })
-    ),
-    vscode.commands.registerCommand('agent-sync.doctor', async () => {
-      const { loadConfig, runDoctor, syncPairs } = await engine();
-      const config = await loadConfig();
-      const checks = await runDoctor({
-        syncRoot: config.syncRoot,
-        localRoots: syncPairs(config).map((p) => ({ dir: p.localDir })),
-      });
-      output.clear();
-      for (const c of checks) {
-        output.appendLine(`${c.status.toUpperCase()}  ${c.name}: ${c.details}`);
-      }
-      output.show();
-    }),
-    // Every project agent-sync knows about, and which machines have it - all
-    // of this already lives in registry.json, this just prints it.
-    vscode.commands.registerCommand('agent-sync.projects', async () => {
-      const { loadConfig, loadRegistry, formatRegistry } = await engine();
-      const config = await loadConfig();
-      const registry = await loadRegistry(config.syncRoot);
-      output.clear();
-      for (const line of formatRegistry(registry)) output.appendLine(line);
-      output.show();
-    }),
-    // Shows the resolved project (like the old version) AND lets the user
-    // pick a different one from the registry, or start a fresh one - the
-    // command was named "Link this folder to a project" but used to only
-    // display a guess, with no way to act on it if the guess was wrong.
-    vscode.commands.registerCommand('agent-sync.link', async () => {
-      const cwd = workspaceRoot();
-      if (!cwd) {
-        vscode.window.showWarningMessage('agent-sync: open a folder first.');
-        return;
-      }
-      const { loadConfig, ensureIdentity, loadRegistry, linkProject } = await engine();
-      const config = await loadConfig();
-      const current = await ensureIdentity(config, cwd, { write: false });
-      const registry = await loadRegistry(config.syncRoot);
-
-      const createNew = { label: '$(add) Create a new project id for this folder', id: null };
-      const known = Object.entries(registry.projects).map(([id, p]) => ({
-        label: p.name,
-        description: id === current.id ? `${id} - current guess` : id,
-        id,
-      }));
-
-      const picked = await vscode.window.showQuickPick([createNew, ...known], {
-        placeHolder: current.id
-          ? `Currently resolves to ${current.id} (matched by ${current.source}) - pick a different project, or create new`
-          : 'No project matched yet - pick one, or create new',
-      });
-      if (!picked) return;
-
-      if (picked.id === null) {
-        const identity = await ensureIdentity(config, cwd, { write: true });
-        vscode.window.showInformationMessage(`Linked this folder to a new project: ${identity.id}`);
-      } else {
-        const code = await linkProject(config, cwd, picked.id);
-        if (code === 0) {
-          vscode.window.showInformationMessage(`Linked this folder to ${picked.id}.`);
-        } else {
-          vscode.window.showErrorMessage(`agent-sync: could not link to ${picked.id}.`);
-        }
-      }
-      sync({ silent: false, direction: 'both' });
-    }),
+    vscode.commands.registerCommand('agent-sync.menu', showMenu),
+    vscode.commands.registerCommand('agent-sync.sync', doSync),
+    vscode.commands.registerCommand('agent-sync.doctor', doDoctor),
+    vscode.commands.registerCommand('agent-sync.projects', doProjects),
+    vscode.commands.registerCommand('agent-sync.link', doLink),
     // Focus regained means another machine may have pushed since we last looked.
     // Focus lost is the moment to send up whatever this session produced.
     vscode.window.onDidChangeWindowState((s) => {

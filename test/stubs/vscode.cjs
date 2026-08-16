@@ -10,6 +10,8 @@ const disposable = () => ({ dispose() {} });
 
 const registeredCommands = [];
 const outputLines = [];
+const executedCommands = [];
+const statusBarItems = [];
 
 module.exports = {
   StatusBarAlignment: { Left: 1, Right: 2 },
@@ -29,14 +31,18 @@ module.exports = {
       show() {},
       dispose() {},
     }),
-    createStatusBarItem: () => ({
-      text: '',
-      tooltip: '',
-      command: '',
-      backgroundColor: undefined,
-      show() {},
-      dispose() {},
-    }),
+    createStatusBarItem: () => {
+      const item = {
+        text: '',
+        tooltip: '',
+        command: '',
+        backgroundColor: undefined,
+        show() {},
+        dispose() {},
+      };
+      statusBarItems.push(item);
+      return item;
+    },
     onDidChangeWindowState: () => disposable(),
     showInformationMessage: () => {},
     showWarningMessage: () => {},
@@ -47,6 +53,9 @@ module.exports = {
     registerCommand: (id, handler) => {
       registeredCommands.push({ id, handler });
       return disposable();
+    },
+    executeCommand: async (...args) => {
+      executedCommands.push(args);
     },
   },
   workspace: {
@@ -63,4 +72,6 @@ module.exports = {
   },
   __registeredCommands: registeredCommands,
   __outputLines: outputLines,
+  __executedCommands: executedCommands,
+  __statusBarItems: statusBarItems,
 };

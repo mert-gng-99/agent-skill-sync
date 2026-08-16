@@ -31,13 +31,51 @@ test('the entry point loads the way the extension host loads it', () => {
   assert.equal(typeof extension.deactivate, 'function');
 });
 
-test('activate registers the four contributed commands', async () => {
+test('activate registers the five contributed commands', async () => {
   const context = { subscriptions: [] };
   await extension.activate(context);
 
   const ids = vscodeStub.__registeredCommands.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.projects', 'agent-sync.sync']);
+  assert.deepEqual(ids, [
+    'agent-sync.doctor',
+    'agent-sync.link',
+    'agent-sync.menu',
+    'agent-sync.projects',
+    'agent-sync.sync',
+  ]);
   assert.ok(context.subscriptions.length > 0, 'everything registered must be disposable');
+});
+
+test('the status bar item opens the menu, not a direct sync', async () => {
+  // Regression: a single click used to run "Sync now" straight away, with no
+  // way to reach the other commands (Settings included) short of the Command
+  // Palette. The status bar item must be bound to the menu picker instead.
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  assert.equal(vscodeStub.__statusBarItems.at(-1).command, 'agent-sync.menu');
+});
+
+test('picking "Open Settings" from the menu opens the agent-sync settings page', async () => {
+  vscodeStub.window.showQuickPick = async (items) =>
+    items.find((i) => i.label.includes('Open Settings'));
+
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  const handler = vscodeStub.__registeredCommands.filter((c) => c.id === 'agent-sync.menu').at(-1).handler;
+  await handler();
+
+  assert.deepEqual(vscodeStub.__executedCommands.at(-1), ['workbench.action.openSettings', 'agent-sync']);
+
+  vscodeStub.window.showQuickPick = async () => undefined;
+});
+
+test('dismissing the menu (Escape) does nothing', async () => {
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+  const handler = vscodeStub.__registeredCommands.filter((c) => c.id === 'agent-sync.menu').at(-1).handler;
+  const before = vscodeStub.__executedCommands.length;
+  await handler(); // default stub: showQuickPick resolves undefined
+  assert.equal(vscodeStub.__executedCommands.length, before);
 });
 
 test('the engine is reachable from the CommonJS entry point', async () => {

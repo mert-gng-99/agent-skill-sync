@@ -115,7 +115,7 @@ code --install-extension agent-sync-0.1.0.vsix
 
 Restart VS Code. Then `agent-sync` shows up in the status bar.
 
-**Commands** (press `Cmd/Ctrl + Shift + P`, then search "agent-sync"):
+Clicking the status bar item opens a quick menu with all the commands below, Settings included - no Command Palette needed. The same commands are also reachable via `Cmd/Ctrl + Shift + P`, searching "agent-sync":
 - `agent-sync: Sync now` runs a pull and a push by hand.
 - `agent-sync: Run health checks` shows `doctor` output in the Output panel.
 - `agent-sync: Show all projects` lists every project `agent-sync` knows about, with the path it has on each of your machines. Same data as `agent-sync projects` on the CLI, read straight from `registry.json`.

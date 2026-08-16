@@ -115,7 +115,7 @@ code --install-extension agent-sync-0.1.0.vsix
 
 VS Code'u yeniden başlatınca durum çubuğunda `agent-sync` görünür.
 
-**Komutlar** (`Cmd/Ctrl + Shift + P` → "agent-sync" ara):
+Durum çubuğundaki `agent-sync` yazısına tıklamak, aşağıdaki tüm komutları (Settings dahil) içeren bir menü açar — Command Palette'e gerek kalmaz. Aynı komutlara `Cmd/Ctrl + Shift + P` → "agent-sync" aramasıyla da ulaşılabilir:
 - `agent-sync: Sync now` elle pull+push çalıştırır.
 - `agent-sync: Run health checks` `doctor` çıktısını Output panelinde gösterir.
 - `agent-sync: Show all projects` `agent-sync`'in bildiği tüm projeleri, her birinin makinelerindeki yoluyla birlikte listeler. CLI'daki `agent-sync projects` ile aynı veri, doğrudan `registry.json`'dan okunur.

@@ -21,6 +21,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "agent-sync.menu",
+        "title": "agent-sync: Show menu"
+      },
+      {
         "command": "agent-sync.sync",
         "title": "agent-sync: Sync now"
       },

@@ -13,9 +13,15 @@ const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.u
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const source = fs.readFileSync(path.join(root, 'extension', 'extension.cjs'), 'utf8');
 
-test('declares the four commands the README promises', () => {
+test('declares the five commands the README promises', () => {
   const ids = manifest.contributes.commands.map((c) => c.command).sort();
-  assert.deepEqual(ids, ['agent-sync.doctor', 'agent-sync.link', 'agent-sync.projects', 'agent-sync.sync']);
+  assert.deepEqual(ids, [
+    'agent-sync.doctor',
+    'agent-sync.link',
+    'agent-sync.menu',
+    'agent-sync.projects',
+    'agent-sync.sync',
+  ]);
 });
 
 test('activates on startup so window events can be observed', () => {
@@ -75,9 +81,16 @@ test('the extension performs both halves of the round trip', () => {
 test('the link command lets you pick a project instead of only showing a guess', () => {
   // Previously this command only called showInformationMessage with the
   // auto-resolved guess - no way to act on it if the guess was wrong.
-  const handler = source.slice(source.indexOf("registerCommand('agent-sync.link'"));
+  // doLink is defined ahead of activate() and registered by reference, so
+  // this looks at the function body itself rather than the registration site.
+  const handler = source.slice(source.indexOf('async function doLink'));
   assert.match(handler, /showQuickPick/);
   assert.match(handler, /linkProject/);
+});
+
+test('the status bar item opens a menu instead of running a command directly', () => {
+  assert.match(source, /statusItem\.command = 'agent-sync\.menu'/);
+  assert.match(source, /registerCommand\('agent-sync\.menu', showMenu\)/);
 });
 
 test('window blur triggers a sync, not only focus', () => {
