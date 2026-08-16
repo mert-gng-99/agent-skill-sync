@@ -88,6 +88,17 @@ async function applyVsCodeSettings() {
   await saveConfig(merged);
 }
 
+// Nothing configured yet is the common first-run case, not a failure - but
+// the only errors that actually mean that are ones reading or validating
+// config.json itself (see loadConfig/validateConfig, both of which always
+// name configPath() in their message). Any other ENOENT - e.g. a staged file
+// a concurrent sync briefly deleted mid-read - is a real (if often
+// transient) failure and must not be mislabeled as "run init", which sends
+// the user chasing a setup problem that doesn't exist.
+function isConfigError(err) {
+  return /config\.json/i.test(err.message);
+}
+
 let statusItem;
 let output;
 
@@ -113,7 +124,7 @@ function workspaceRoot() {
  * Never throws into VS Code - failures surface in the status bar and the
  * output channel, they do not interrupt the user.
  */
-async function sync({ silent, direction = 'both', requireExisting = false }) {
+async function syncOnce({ silent, direction = 'both', requireExisting = false }) {
   const cwd = workspaceRoot();
   if (!cwd) {
     // Without an open folder there is no project to resolve. Say so instead of
@@ -181,9 +192,7 @@ async function sync({ silent, direction = 'both', requireExisting = false }) {
       );
     }
   } catch (err) {
-    // Nothing configured yet is the common first-run case, not a failure.
-    // Tell the user how to fix it rather than logging into a hidden channel.
-    const needsSetup = err.code === 'ENOENT' || /config/i.test(err.message);
+    const needsSetup = isConfigError(err);
     statusItem.text = needsSetup ? '$(gear) agent-sync: setup needed' : '$(error) agent-sync';
     statusItem.tooltip = needsSetup
       ? 'Not configured on this machine yet. Run: node bin/agent-sync.mjs init'
@@ -198,6 +207,28 @@ async function sync({ silent, direction = 'both', requireExisting = false }) {
     }
   }
 }
+
+// Wraps an async fn so overlapping calls run one at a time, in order, each
+// one waiting for the last regardless of whether it resolved or rejected.
+function serialize(fn) {
+  let chain = Promise.resolve();
+  return (...args) => {
+    chain = chain.then(
+      () => fn(...args),
+      () => fn(...args)
+    );
+    return chain;
+  };
+}
+
+// syncOnce touches the same staged/ files a concurrent invocation would -
+// collectFromTools wipes and recopies them (mirrorDir), runSync reads them
+// back for hashing. Two overlapping calls (e.g. a focus-lost and a
+// focus-gained firing close together, or a manual "Sync now" click while an
+// automatic one is still running) raced on exactly that and produced a real,
+// if transient, ENOENT. serialize() rules that out: each call still runs,
+// just never at the same time as another.
+const sync = serialize(syncOnce);
 
 function doSync() {
   return sync({ silent: false, direction: 'both' });
@@ -331,4 +362,4 @@ function deactivate() {
   return sync({ silent: true, direction: 'out', requireExisting: true });
 }
 
-module.exports = { activate, deactivate, mergeVsCodeSettings };
+module.exports = { activate, deactivate, mergeVsCodeSettings, isConfigError, serialize };

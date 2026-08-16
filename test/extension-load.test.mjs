@@ -78,6 +78,60 @@ test('dismissing the menu (Escape) does nothing', async () => {
   assert.equal(vscodeStub.__executedCommands.length, before);
 });
 
+test('a missing or invalid config.json is classified as "not configured"', () => {
+  const missing = new Error("ENOENT: no such file or directory, open '/home/x/.agent-sync/config.json'");
+  missing.code = 'ENOENT';
+  assert.equal(extension.isConfigError(missing), true);
+
+  const invalid = new Error('Invalid config at /home/x/.agent-sync/config.json: machineId must contain only letters, digits, dash or underscore');
+  assert.equal(extension.isConfigError(invalid), true);
+});
+
+test('an unrelated ENOENT elsewhere is not mistaken for "not configured"', () => {
+  // Reproduces a real false alarm: a staged skill file briefly missing due to
+  // a concurrent sync race surfaced as "agent-sync is not set up on this
+  // machine yet. Run node bin/agent-sync.mjs init" - sending the user
+  // chasing a setup problem that never existed.
+  const err = new Error(
+    "ENOENT: no such file or directory, open 'C:\\Users\\x\\.agent-sync\\staged\\skills\\hallmark\\foo.md'"
+  );
+  err.code = 'ENOENT';
+  assert.equal(extension.isConfigError(err), false);
+});
+
+test('serialize() never runs two calls of the wrapped function at the same time', async () => {
+  let concurrent = 0;
+  let maxConcurrent = 0;
+  const slow = async () => {
+    concurrent += 1;
+    maxConcurrent = Math.max(maxConcurrent, concurrent);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    concurrent -= 1;
+  };
+  const serialized = extension.serialize(slow);
+  await Promise.all([serialized(), serialized(), serialized()]);
+  assert.equal(maxConcurrent, 1);
+});
+
+test('serialize() still runs every call, in order, even after an earlier one rejects', async () => {
+  // A real sync failure must not jam the queue - the next focus-change or
+  // click still has to go through.
+  const calls = [];
+  const fn = async (n) => {
+    calls.push(n);
+    if (n === 1) throw new Error('boom');
+    return n;
+  };
+  const serialized = extension.serialize(fn);
+  const results = await Promise.allSettled([serialized(1), serialized(2), serialized(3)]);
+  assert.deepEqual(calls, [1, 2, 3]);
+  assert.equal(results[0].status, 'rejected');
+  assert.deepEqual(
+    results.slice(1).map((r) => r.value),
+    [2, 3]
+  );
+});
+
 test('the engine is reachable from the CommonJS entry point', async () => {
   // extension.cjs pulls the ESM engine in with a dynamic import. If those paths
   // are wrong - or the engine files are missing from a package - this throws.
