@@ -23,7 +23,15 @@ export async function takeSnapshot(pairs, snapshotKeep = 20) {
   }
   const existing = (await fs.readdir(root).catch(() => [])).sort();
   for (const old of existing.slice(0, Math.max(0, existing.length - snapshotKeep))) {
-    await fs.rm(path.join(root, old), { recursive: true, force: true });
+    // On Windows, a file can be transiently locked by an antivirus scan or
+    // the search indexer right after being written - maxRetries/retryDelay
+    // is Node's built-in answer to exactly that EPERM/EBUSY race. If it
+    // still fails after retrying, skip it rather than throwing: pruning an
+    // old safety snapshot is best-effort and must never abort - let alone
+    // crash - the real pull/push it was only a side effect of.
+    await fs
+      .rm(path.join(root, old), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      .catch(() => {});
   }
   return target;
 }
