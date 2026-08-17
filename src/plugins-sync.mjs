@@ -1,10 +1,38 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pluginChoicesPath } from './paths.mjs';
 
-const run = promisify(execFile);
+const execCommand = promisify(exec);
+
+/**
+ * npm's global installer puts three files on a Windows PATH for a single bin
+ * entry - `claude`, `claude.cmd`, `claude.ps1` - because there is no native
+ * shebang support. A shell resolves the extensionless `claude` shim fine, but
+ * Node's child_process spawns Win32 processes directly and only finds `.cmd`/
+ * `.exe`/`.bat` there, so `execFile('claude', ...)` fails with ENOENT even
+ * though `claude --version` works from the same machine's terminal.
+ */
+export function claudeBin(platform = process.platform) {
+  return platform === 'win32' ? 'claude.cmd' : 'claude';
+}
+
+// A .cmd is a batch script, not a native executable - Windows' CreateProcess
+// cannot launch it directly (EINVAL), only cmd.exe can, so this must go
+// through a shell. That means the command is a single string, not a quoted
+// argv, so every value reaching here (plugin ids, marketplace names, repo
+// slugs - all sourced from settings synced in from another machine) is
+// checked against a strict allowlist first. Anything else is refused rather
+// than silently mis-executed or, worse, breaking out of the intended command.
+const SAFE_ARG = /^[\w@./-]+$/;
+
+export async function safeExec(cmd, args, { runner = execCommand } = {}) {
+  for (const arg of args) {
+    if (!SAFE_ARG.test(arg)) throw new Error(`refusing to run: unsafe argument "${arg}"`);
+  }
+  return runner([cmd, ...args].join(' '));
+}
 
 export async function loadPluginChoices() {
   try {
@@ -36,9 +64,9 @@ export function computeMissingPlugins({ enabledPlugins, installedIds, choices })
  * different machine's plugin config, a PATH problem, anything. Callers treat
  * that as "nothing we can check right now", never as a reason to fail a sync.
  */
-export async function listInstalledPluginIds({ exec = run } = {}) {
+export async function listInstalledPluginIds({ exec = safeExec } = {}) {
   try {
-    const { stdout } = await exec('claude', ['plugin', 'list', '--json']);
+    const { stdout } = await exec(claudeBin(), ['plugin', 'list', '--json']);
     return new Set(JSON.parse(stdout).map((p) => p.id));
   } catch {
     return null;
@@ -47,7 +75,7 @@ export async function listInstalledPluginIds({ exec = run } = {}) {
 
 async function marketplaceKnown(name, { exec }) {
   try {
-    const { stdout } = await exec('claude', ['plugin', 'marketplace', 'list', '--json']);
+    const { stdout } = await exec(claudeBin(), ['plugin', 'marketplace', 'list', '--json']);
     return JSON.parse(stdout).some((m) => m.name === name);
   } catch {
     return false;
@@ -58,9 +86,9 @@ async function installOne(id, { extraKnownMarketplaces, exec }) {
   const marketplace = id.split('@')[1];
   if (!(await marketplaceKnown(marketplace, { exec }))) {
     const source = extraKnownMarketplaces?.[marketplace]?.source?.repo;
-    if (source) await exec('claude', ['plugin', 'marketplace', 'add', source]);
+    if (source) await exec(claudeBin(), ['plugin', 'marketplace', 'add', source]);
   }
-  await exec('claude', ['plugin', 'install', id]);
+  await exec(claudeBin(), ['plugin', 'install', id]);
 }
 
 /**
@@ -68,7 +96,7 @@ async function installOne(id, { extraKnownMarketplaces, exec }) {
  * typed in a terminal. A hook or the VS Code extension has no stdin to ask
  * on, and `ask` would hang the session waiting for input that never comes.
  */
-export async function syncPlugins({ enabledPlugins, extraKnownMarketplaces, ask, exec = run }) {
+export async function syncPlugins({ enabledPlugins, extraKnownMarketplaces, ask, exec = safeExec }) {
   const installedIds = await listInstalledPluginIds({ exec });
   if (installedIds === null) return [];
 

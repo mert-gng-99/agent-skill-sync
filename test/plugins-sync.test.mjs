@@ -7,6 +7,8 @@ import {
   savePluginChoices,
   listInstalledPluginIds,
   syncPlugins,
+  claudeBin,
+  safeExec,
 } from '../src/plugins-sync.mjs';
 import { pluginChoicesPath } from '../src/paths.mjs';
 import { useIsolatedHome } from './helpers/isolated-home.mjs';
@@ -64,9 +66,36 @@ test('plugin choices round-trip through disk, empty when never written', async (
   assert.deepEqual(onDisk, { 'x@y': 'skipped' });
 });
 
+test('claudeBin resolves to the .cmd shim on Windows and the plain name everywhere else', () => {
+  assert.equal(claudeBin('win32'), 'claude.cmd');
+  assert.equal(claudeBin('darwin'), 'claude');
+  assert.equal(claudeBin('linux'), 'claude');
+});
+
+test('safeExec refuses an argument outside the allowlist before it ever reaches the shell', async () => {
+  const runner = async () => {
+    throw new Error('must not be called for an unsafe argument');
+  };
+  await assert.rejects(
+    () => safeExec('claude.cmd', ['plugin', 'install', 'evil"; rm -rf /'], { runner }),
+    /unsafe argument/
+  );
+});
+
+test('safeExec runs allowlisted arguments as a single shell command string', async () => {
+  const calls = [];
+  const runner = async (command) => {
+    calls.push(command);
+    return { stdout: 'ok' };
+  };
+  const result = await safeExec('claude.cmd', ['plugin', 'list', '--json'], { runner });
+  assert.equal(result.stdout, 'ok');
+  assert.deepEqual(calls, ['claude.cmd plugin list --json']);
+});
+
 test('listInstalledPluginIds parses `claude plugin list --json` output into a Set of ids', async () => {
   const exec = async (cmd, args) => {
-    assert.equal(cmd, 'claude');
+    assert.equal(cmd, claudeBin());
     assert.deepEqual(args, ['plugin', 'list', '--json']);
     return { stdout: JSON.stringify([{ id: 'a@b' }, { id: 'c@d' }]) };
   };
