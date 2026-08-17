@@ -18,6 +18,7 @@ Türkçe: [README.tr.md](README.tr.md)
 - On a conflict, nothing gets overwritten. Your local version is saved next to the incoming one, as `<name>.conflict-<machine>-<timestamp>.<ext>`, and both sides keep a copy.
 - Before every `pull`, `agent-sync` saves the current local files into `~/.agent-sync/snapshots/` (last 20 kept), so a bad sync can be undone by hand.
 - Each supported tool has its own small adapter module. The sync engine itself does not know about any tool. It only moves generic files between the mirror and `syncRoot`. Adapters turn that generic content into `AGENTS.md`, Claude Code's memory folder, and so on.
+- Claude Code plugins (the source of most skills you see in a session, beyond your own `~/.claude/skills/` files) are not copied as files. Their cache runs to hundreds of megabytes and is not portable between machines. Instead, `agent-sync` carries the list of enabled plugins and known marketplaces, and offers to install whatever is missing the next time you run `pull` by hand. See section 6.
 
 ### 3. Requirements and policies
 - You need Node.js version 20 or higher. `agent-sync` uses only built-in Node modules, so it needs no `npm` packages.
@@ -79,6 +80,8 @@ Then build and install the VS Code extension: `npx @vscode/vsce package --allow-
 | `--force` | Pushes files even when they look like they hold a secret |
 | `--hook` | For automated callers, like the Claude Code hooks from `init` (see section 4): skips a folder with no project marker yet, instead of creating a new project |
 
+When you run `pull` yourself, by typing it, in a real terminal, `agent-sync` also checks for Claude Code plugins that are enabled on another machine but missing here (this needs the `claude` CLI on your `PATH`). For each one it asks `Install <plugin>, synced from another machine? [y/N]`. Say no and it is never asked again on this machine; say yes and it runs `claude plugin install` for you. This check never runs from a hook or from the VS Code extension, since neither has a terminal to ask on.
+
 ### 7. Supported tools
 
 | Target ID | Tool | File or folder it writes to |
@@ -127,6 +130,7 @@ Clicking the status bar item opens a quick menu with all the commands below, Set
 - Deletions do not spread. If you delete a file on one computer, `agent-sync` brings it back from the remote copy. To delete a file on purpose, use `agent-sync forget <path>`.
 - Sync is not live streaming. It runs at the start and end of a session, or through the `run` command wrapper.
 - Skills only auto trigger inside Claude Code. In the other tools they are readable text, but nothing loads them on its own.
+- Machines do not have to carry the same set of Claude Code plugins. Declining a plugin (see section 6) only affects this machine; it stays enabled and installable on the others.
 - Before a push, `agent-sync` scans outgoing files for API keys and passwords. A file that looks risky stays local and gets reported, instead of being pushed. Use `--force` to push it anyway, if the match was wrong. Incoming files, from `pull`, are not scanned.
 
 ### 11. Session continuity (transcript sync)

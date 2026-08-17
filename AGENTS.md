@@ -40,4 +40,7 @@ These are synced as markdown and can be read on demand:
 - hallmark
 - humanizer
 - skill-creator
+- watch-youtube
+- wiki-schema
+- wstg
 <!-- agent-sync:end -->

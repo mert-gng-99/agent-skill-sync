@@ -18,6 +18,7 @@ English: [README.md](README.md)
 - Çakışma durumunda hiçbir şeyin üzerine yazılmaz. Yerel sürümünüz, gelen sürümün yanına `<isim>.conflict-<makine>-<zaman damgası>.<uzantı>` olarak kaydedilir, iki taraf da kendi kopyasını korur.
 - Her `pull`'dan önce `agent-sync`, o anki yerel dosyaları `~/.agent-sync/snapshots/` altına kaydeder (son 20 tanesi tutulur), böylece kötü giden bir senkron elle geri alınabilir.
 - Desteklenen her aracın kendi küçük adapter modülü vardır. Senkron motorunun kendisi hiçbir aracı tanımaz, yalnızca genel dosyaları ayna ile `syncRoot` arasında taşır. Bu genel içeriği `AGENTS.md`'e, Claude Code'un hafıza klasörüne vb. dönüştüren adapter'lardır.
+- Claude Code plugin'leri (bir oturumda gördüğün skill'lerin çoğunun asıl kaynağı, kendi `~/.claude/skills/` dosyaların dışında) dosya olarak kopyalanmaz. Plugin cache'i yüzlerce megabayta çıkabiliyor ve makineler arasında taşınabilir değil. Bunun yerine `agent-sync`, hangi plugin'lerin açık olduğu ve hangi marketplace'lerin bilindiği listesini taşır; elle çalıştırdığın bir sonraki `pull`'da eksik olanları kurmayı önerir. Bkz. bölüm 6.
 
 ### 3. Gereksinimler & Politikalar
 - Node.js >= 20.0.0 gerekir, sıfır harici `npm` bağımlılığı.
@@ -79,6 +80,8 @@ Sonra VS Code eklentisini derle ve kur: `npx @vscode/vsce package --allow-missin
 | `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
 | `--hook` | Yalnızca otomatik çağıranlar için, örneğin `init`'in kurduğu Claude Code hook'ları (bkz. bölüm 4): henüz proje marker'ı olmayan bir klasörü, yeni proje oluşturmak yerine atlar |
 
+`pull`'u elle, gerçek bir terminalde çalıştırdığında `agent-sync`, başka bir makinede açık olup burada eksik olan Claude Code plugin'lerini de kontrol eder (bunun için `claude` CLI'ının `PATH`'te olması gerekir). Her biri için `Install <plugin>, synced from another machine? [y/N]` diye sorar. Hayır dersen o plugin bu makinede bir daha hiç sorulmaz; evet dersen senin yerine `claude plugin install` çalıştırılır. Bu kontrol bir hook'tan veya VS Code eklentisinden asla çalışmaz, ikisinin de soru sorabileceği bir terminali yoktur.
+
 ### 7. Desteklenen Araçlar
 
 | Araç Kimliği (`id`) | Araç Adı | Hedef Dosya / Dizin |
@@ -127,6 +130,7 @@ Durum çubuğundaki `agent-sync` yazısına tıklamak, aşağıdaki tüm komutla
 - Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
 - Senkronizasyon anlık akış değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.
 - Skill'ler yalnızca Claude Code üzerinde otomatik araç olarak tetiklenir. Diğer araçlarda okunabilir metin olarak erişilebilir durumdadır.
+- Makinelerin aynı plugin setini taşıması gerekmez. Bir plugin'i bir makinede reddetmek (bkz. bölüm 6) yalnızca o makineyi etkiler; diğerlerinde açık ve kurulabilir kalır.
 - Dışarı çıkacak (`push`) dosyalarda API anahtarları ve şifreler taranır. Şüpheli dosyalar **push edilmez, yerelde kalır** ve raporlanır. Yanlış pozitif durumlarında `--force` parametresiyle push zorlanabilir. Gelen (`pull`) dosyalar taranmaz.
 
 ### 11. Oturum Devamlılığı (Transkript Senkronu)

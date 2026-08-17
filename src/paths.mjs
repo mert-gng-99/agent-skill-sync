@@ -36,3 +36,8 @@ export function stagedSharedDir() {
 export function stagedTranscriptsDir(projectId) {
   return path.join(stagedDir(), 'transcripts', projectId);
 }
+
+/** Records which synced-but-missing plugins the user has already declined on this machine. */
+export function pluginChoicesPath() {
+  return path.join(homeDir(), 'plugin-choices.json');
+}

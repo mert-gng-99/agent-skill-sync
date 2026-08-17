@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import process from 'node:process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import readline from 'node:readline/promises';
 import { loadConfig } from '../src/config.mjs';
 import { runSync, syncPairs } from '../src/sync.mjs';
 import { runDoctor } from '../src/doctor.mjs';
@@ -7,6 +10,8 @@ import { init } from '../src/init.mjs';
 import { ensureIdentity, linkProject, forgetFile, readMarker } from '../src/project.mjs';
 import { loadRegistry, formatRegistry } from '../src/registry.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
+import { claudeHome } from '../src/adapters/claude.mjs';
+import { syncPlugins } from '../src/plugins-sync.mjs';
 import { runWrapped } from '../src/run.mjs';
 
 const HELP = `agent-sync <command> [--dry-run] [--force]
@@ -92,6 +97,14 @@ async function main() {
             `kept local, not pushed. Re-run with --force to send it anyway.\n`
         );
       }
+      // Plugins enabled on another machine (~/.claude/plugins) are never
+      // copied as files - the cache is too big and not portable - so this is
+      // the only place that catches up with them, and only when a human is
+      // actually at the keyboard to answer for each one. A hook or the VS
+      // Code extension has no terminal to ask on, so both are skipped here.
+      if (command === 'pull' && !hook && !dryRun && process.stdin.isTTY && config.targets.includes('claude')) {
+        await offerMissingPlugins();
+      }
       return 0;
     }
     case 'status': {
@@ -132,6 +145,31 @@ async function main() {
     default:
       process.stderr.write(`Unknown command: ${command}\n\n${HELP}`);
       return 1;
+  }
+}
+
+/**
+ * Best-effort and silent on any failure - this is a convenience on top of a
+ * sync that already succeeded, not a step the sync depends on.
+ */
+async function offerMissingPlugins() {
+  try {
+    const settings = JSON.parse(
+      await fs.readFile(path.join(claudeHome(), 'settings.json'), 'utf8').catch(() => '{}')
+    );
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      const installed = await syncPlugins({
+        enabledPlugins: settings.enabledPlugins,
+        extraKnownMarketplaces: settings.extraKnownMarketplaces,
+        ask: (q) => rl.question(q),
+      });
+      for (const id of installed) process.stdout.write(`installed ${id}\n`);
+    } finally {
+      rl.close();
+    }
+  } catch (err) {
+    process.stderr.write(`agent-sync: plugin check skipped (${err.message})\n`);
   }
 }
 
