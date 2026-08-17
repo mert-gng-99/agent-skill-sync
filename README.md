@@ -80,7 +80,7 @@ Then build and install the VS Code extension: `npx @vscode/vsce package --allow-
 | `--force` | Pushes files even when they look like they hold a secret |
 | `--hook` | For automated callers, like the Claude Code hooks from `init` (see section 4): skips a folder with no project marker yet, instead of creating a new project |
 
-When you run `pull` yourself, by typing it, in a real terminal, `agent-sync` also checks for Claude Code plugins that are enabled on another machine but missing here (this needs the `claude` CLI on your `PATH`). For each one it asks `Install <plugin>, synced from another machine? [y/N]`. Say no and it is never asked again on this machine; say yes and it runs `claude plugin install` for you. This check never runs from a hook or from the VS Code extension, since neither has a terminal to ask on.
+When you run `pull` yourself, by typing it, in a real terminal, `agent-sync` also checks for Claude Code plugins that are enabled on another machine but missing here (this needs the `claude` CLI on your `PATH`). For each one it asks `Install <plugin>, synced from another machine? [y/N]`. Say no and it is never asked again on this machine; say yes and it runs `claude plugin install` for you. A `pull` from a hook, or from a script, never asks, since there is no terminal to ask on, but it still prints one line naming what is missing, so a plugin does not stay silently uninstalled just because nobody happened to run `pull` by hand.
 
 ### 7. Supported tools
 

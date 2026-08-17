@@ -11,7 +11,7 @@ import { ensureIdentity, linkProject, forgetFile, readMarker } from '../src/proj
 import { loadRegistry, formatRegistry } from '../src/registry.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
 import { claudeHome } from '../src/adapters/claude.mjs';
-import { syncPlugins } from '../src/plugins-sync.mjs';
+import { syncPlugins, checkMissingPlugins } from '../src/plugins-sync.mjs';
 import { runWrapped } from '../src/run.mjs';
 
 const HELP = `agent-sync <command> [--dry-run] [--force]
@@ -99,11 +99,17 @@ async function main() {
       }
       // Plugins enabled on another machine (~/.claude/plugins) are never
       // copied as files - the cache is too big and not portable - so this is
-      // the only place that catches up with them, and only when a human is
-      // actually at the keyboard to answer for each one. A hook or the VS
-      // Code extension has no terminal to ask on, so both are skipped here.
-      if (command === 'pull' && !hook && !dryRun && process.stdin.isTTY && config.targets.includes('claude')) {
-        await offerMissingPlugins();
+      // the only place that catches up with them. Only a human at a real
+      // terminal gets asked per plugin; a hook or the VS Code extension has
+      // no stdin for that, but still gets a one-line heads-up, so a missing
+      // plugin is never silently invisible just because nobody happened to
+      // run `pull` by hand recently.
+      if (command === 'pull' && !dryRun && config.targets.includes('claude')) {
+        if (!hook && process.stdin.isTTY) {
+          await offerMissingPlugins();
+        } else {
+          await noticeMissingPlugins();
+        }
       }
       return 0;
     }
@@ -170,6 +176,28 @@ async function offerMissingPlugins() {
     }
   } catch (err) {
     process.stderr.write(`agent-sync: plugin check skipped (${err.message})\n`);
+  }
+}
+
+/**
+ * Runs from a hook or any non-interactive pull. Read-only: never prompts,
+ * never installs, just names what is missing so it does not stay invisible
+ * forever behind a terminal nobody opens.
+ */
+async function noticeMissingPlugins() {
+  try {
+    const settings = JSON.parse(
+      await fs.readFile(path.join(claudeHome(), 'settings.json'), 'utf8').catch(() => '{}')
+    );
+    const missing = await checkMissingPlugins({ enabledPlugins: settings.enabledPlugins });
+    if (missing.length > 0) {
+      process.stdout.write(
+        `${missing.length} plugin(s) synced from another machine are not installed here: ` +
+          `${missing.join(', ')}. Run "agent-sync pull" in a terminal to install them.\n`
+      );
+    }
+  } catch {
+    // Best-effort notice only - never let this affect a hook's exit code.
   }
 }
 

@@ -80,7 +80,7 @@ Sonra VS Code eklentisini derle ve kur: `npx @vscode/vsce package --allow-missin
 | `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
 | `--hook` | Yalnızca otomatik çağıranlar için, örneğin `init`'in kurduğu Claude Code hook'ları (bkz. bölüm 4): henüz proje marker'ı olmayan bir klasörü, yeni proje oluşturmak yerine atlar |
 
-`pull`'u elle, gerçek bir terminalde çalıştırdığında `agent-sync`, başka bir makinede açık olup burada eksik olan Claude Code plugin'lerini de kontrol eder (bunun için `claude` CLI'ının `PATH`'te olması gerekir). Her biri için `Install <plugin>, synced from another machine? [y/N]` diye sorar. Hayır dersen o plugin bu makinede bir daha hiç sorulmaz; evet dersen senin yerine `claude plugin install` çalıştırılır. Bu kontrol bir hook'tan veya VS Code eklentisinden asla çalışmaz, ikisinin de soru sorabileceği bir terminali yoktur.
+`pull`'u elle, gerçek bir terminalde çalıştırdığında `agent-sync`, başka bir makinede açık olup burada eksik olan Claude Code plugin'lerini de kontrol eder (bunun için `claude` CLI'ının `PATH`'te olması gerekir). Her biri için `Install <plugin>, synced from another machine? [y/N]` diye sorar. Hayır dersen o plugin bu makinede bir daha hiç sorulmaz; evet dersen senin yerine `claude plugin install` çalıştırılır. Hook'tan veya bir script'ten çalışan bir `pull` hiç soru sormaz, sorabileceği bir terminal yoktur, ama eksik olan varsa tek satırlık bir uyarı basar, böylece bir plugin sırf kimse elle `pull` çalıştırmadı diye sessizce kurulmamış kalmaz.
 
 ### 7. Desteklenen Araçlar
 

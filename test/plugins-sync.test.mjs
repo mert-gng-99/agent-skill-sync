@@ -6,6 +6,7 @@ import {
   loadPluginChoices,
   savePluginChoices,
   listInstalledPluginIds,
+  checkMissingPlugins,
   syncPlugins,
   claudeBin,
   safeExec,
@@ -108,6 +109,35 @@ test('listInstalledPluginIds returns null, not a throw, when the claude CLI is u
     throw new Error('spawn claude ENOENT');
   };
   assert.equal(await listInstalledPluginIds({ exec }), null);
+});
+
+test('checkMissingPlugins is read-only: it never prompts or installs, only reports', async () => {
+  const calls = [];
+  const exec = async (cmd, args) => {
+    calls.push(args.join(' '));
+    if (args.join(' ') === 'plugin list --json') return { stdout: '[]' };
+    throw new Error(`must not call anything beyond plugin list, got: ${args.join(' ')}`);
+  };
+  const missing = await checkMissingPlugins({ enabledPlugins: { 'a@mp': true }, exec });
+  assert.deepEqual(missing, ['a@mp']);
+  assert.deepEqual(calls, ['plugin list --json']);
+});
+
+test('checkMissingPlugins respects a prior decline, same as the interactive path', async () => {
+  const exec = async (cmd, args) => {
+    if (args.join(' ') === 'plugin list --json') return { stdout: '[]' };
+    return { stdout: '' };
+  };
+  await syncPlugins({ enabledPlugins: { 'quiet-decline@mp': true }, extraKnownMarketplaces: {}, ask: async () => 'n', exec });
+  const missing = await checkMissingPlugins({ enabledPlugins: { 'quiet-decline@mp': true }, exec });
+  assert.deepEqual(missing, []);
+});
+
+test('checkMissingPlugins returns an empty list, not an error, when the claude CLI is unavailable', async () => {
+  const exec = async () => {
+    throw new Error('spawn claude ENOENT');
+  };
+  assert.deepEqual(await checkMissingPlugins({ enabledPlugins: { 'a@mp': true }, exec }), []);
 });
 
 test('syncPlugins skips everything silently when the claude CLI cannot be reached - never blocks a sync', async () => {

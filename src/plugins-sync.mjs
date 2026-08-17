@@ -73,6 +73,19 @@ export async function listInstalledPluginIds({ exec = safeExec } = {}) {
   }
 }
 
+/**
+ * Read-only twin of the check inside `syncPlugins` - no prompt, no install,
+ * just the list. A hook has no terminal to ask on but can still print a
+ * heads-up with this, so a missing plugin is never silently invisible just
+ * because nobody happened to run `pull` by hand.
+ */
+export async function checkMissingPlugins({ enabledPlugins, exec = safeExec } = {}) {
+  const installedIds = await listInstalledPluginIds({ exec });
+  if (installedIds === null) return [];
+  const choices = await loadPluginChoices();
+  return computeMissingPlugins({ enabledPlugins, installedIds, choices });
+}
+
 async function marketplaceKnown(name, { exec }) {
   try {
     const { stdout } = await exec(claudeBin(), ['plugin', 'marketplace', 'list', '--json']);
@@ -97,11 +110,10 @@ async function installOne(id, { extraKnownMarketplaces, exec }) {
  * on, and `ask` would hang the session waiting for input that never comes.
  */
 export async function syncPlugins({ enabledPlugins, extraKnownMarketplaces, ask, exec = safeExec }) {
-  const installedIds = await listInstalledPluginIds({ exec });
-  if (installedIds === null) return [];
+  const missing = await checkMissingPlugins({ enabledPlugins, exec });
+  if (missing.length === 0) return [];
 
   const choices = await loadPluginChoices();
-  const missing = computeMissingPlugins({ enabledPlugins, installedIds, choices });
   const installed = [];
 
   for (const id of missing) {
