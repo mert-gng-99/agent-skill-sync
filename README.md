@@ -134,11 +134,12 @@ Clicking the status bar item opens a quick menu with all the commands below, Set
 - Before a push, `agent-sync` scans outgoing files for API keys and passwords. A file that looks risky stays local and gets reported, instead of being pushed. Use `--force` to push it anyway, if the match was wrong. Incoming files, from `pull`, are not scanned.
 
 ### 11. Session continuity (transcript sync)
-Say you open the same project on a different computer, maybe a different folder path, maybe a different OS. If you want your Claude Code session to pick up where it left off, turn on `syncTranscripts` (from the extension Settings, or in `config.json`). Once it is on:
+Say you open the same project on a different computer, maybe a different folder path, maybe a different OS. `syncTranscripts` is what makes your Claude Code session pick up where it left off there, and it is on by default (`config.json`, or the extension Settings, on every machine that ran `init` after this became the default). Turn it off per machine if you would rather not carry session history there.
 
 - This project's `.jsonl` session files are stored by project ID, not by path, under `<syncRoot>/transcripts/<project-id>/`.
-- When you pull the same project on another computer, those files land in that computer's own path based folder, and `claude --resume` finds and lists them there.
-- It is off by default, because session files are large and grow without limit, and they are not cleaned up the way memory notes are. They still go through the same secret scan as everything else, before a push.
+- When you pull the same project on another computer, those files land in that computer's own path based folder, and `claude --resume` finds and lists them there. Both sides need `syncTranscripts: true`: the push side to collect and send, the pull side to write incoming sessions into that machine's own project folder.
+- This only covers sessions started inside a tracked project directory. A session started from your home directory, or anywhere else `agent-sync` has no project for, is excluded on purpose (see section 8) and never syncs, regardless of this setting.
+- Session files are large and grow without limit, and are not cleaned up the way memory notes are. They still go through the same secret scan as everything else, before a push.
 - Known limit: the text of the conversation, what was said and decided, comes through fully. Old tool results inside the session file still point to file paths on the first computer, and those paths do not exist on the second one. So "continue the chat" works, but reaching back into an old tool result does not.
 
 ---

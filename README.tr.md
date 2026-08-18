@@ -135,11 +135,12 @@ Durum çubuğundaki `agent-sync` yazısına tıklamak, aşağıdaki tüm komutla
 
 ### 11. Oturum Devamlılığı (Transkript Senkronu)
 
-Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede açıldığında (farklı klasör yolunda, farklı işletim sisteminde bile), Claude Code oturumlarının kaldığı yerden devam etmesini istiyorsan `syncTranscripts` ayarını aç (eklenti Ayarlar ekranından veya `config.json`'da). Açıkken:
+Aynı proje (aynı git remote'u veya proje kimliği) farklı bir makinede açıldığında (farklı klasör yolunda, farklı işletim sisteminde bile), Claude Code oturumlarının kaldığı yerden devam etmesini sağlayan ayar `syncTranscripts`, ve varsayılan olarak açık geliyor (`config.json`'da, ya da eklenti Ayarlar ekranında - bu varsayılan olduktan sonra `init` çalıştıran her makinede). İstemiyorsan makine başına kapatabilirsin.
 
 - Bu projenin `.jsonl` oturum dosyaları proje kimliğine göre (yola göre değil) `<syncRoot>/transcripts/<proje-id>/` altında saklanır.
-- Diğer makinede aynı projeyi `pull` ettiğinde, o dosyalar **o makinenin kendi yol-bağımlı klasörüne** kopyalanır. `claude --resume` orada onları görür ve listeler.
-- Varsayılan olarak kapalıdır, çünkü transkript dosyaları büyük ve sürekli büyüyen içerik taşır, hafıza notları gibi süzülmüş değildir. Diğer her şey gibi push öncesi sır taraması bu dosyalardan da geçer.
+- Diğer makinede aynı projeyi `pull` ettiğinde, o dosyalar **o makinenin kendi yol-bağımlı klasörüne** kopyalanır. `claude --resume` orada onları görür ve listeler. İki tarafın da `syncTranscripts: true` olması gerekir: push eden taraf toplayıp göndermek için, pull eden taraf da geleni kendi proje klasörüne yazmak için.
+- Bu yalnızca izlenen bir proje dizini içinde başlayan oturumları kapsar. Ev dizininden veya `agent-sync`'in projesi olmayan başka bir yerden başlayan bir oturum bilerek hariç tutulur (bkz. bölüm 8) ve bu ayardan bağımsız olarak asla senkronlanmaz.
+- Oturum dosyaları büyük ve sürekli büyüyen içerik taşır, hafıza notları gibi süzülmüş değildir. Diğer her şey gibi push öncesi sır taraması bu dosyalardan da geçer.
 - Bilinen sınır: konuşmanın metni (ne konuşuldu, ne karar verildi) birebir gelir. Ama transkript içindeki eski dosya okuma/yazma kayıtları kaynak makinenin mutlak yollarına referans verir, hedef makinede o yollar yoktur. Yani "devam et" isteği çalışır, ama eski bir tool sonucuna geri dönmek çalışmaz.
 
 ---

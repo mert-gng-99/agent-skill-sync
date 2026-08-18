@@ -12,7 +12,7 @@ export const DEFAULT_CONFIG = {
   syncRoot: '',
   machineId: '',
   targets: [],
-  syncTranscripts: false,
+  syncTranscripts: true,
   snapshotKeep: 20,
 };
 

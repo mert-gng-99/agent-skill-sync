@@ -8,8 +8,8 @@ import { useIsolatedHome } from './helpers/isolated-home.mjs';
 
 useIsolatedHome();
 
-test('defaults keep transcripts off and retain 20 snapshots', () => {
-  assert.equal(DEFAULT_CONFIG.syncTranscripts, false);
+test('defaults sync transcripts on and retain 20 snapshots', () => {
+  assert.equal(DEFAULT_CONFIG.syncTranscripts, true);
   assert.equal(DEFAULT_CONFIG.snapshotKeep, 20);
 });
 
