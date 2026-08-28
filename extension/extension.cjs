@@ -49,6 +49,7 @@ function mergeVsCodeSettings(fileConfig, vsCodeSettings) {
   const merged = { ...fileConfig };
   if (vsCodeSettings.syncRoot) merged.syncRoot = vsCodeSettings.syncRoot;
   if (vsCodeSettings.machineId) merged.machineId = vsCodeSettings.machineId;
+  if (vsCodeSettings.vaultPath) merged.vaultPath = vsCodeSettings.vaultPath;
   if (vsCodeSettings.targets && vsCodeSettings.targets.length > 0) {
     merged.targets = vsCodeSettings.targets;
   }
@@ -70,6 +71,7 @@ function readVsCodeSettings() {
     machineId: cfg.get('machineId', ''),
     targets: cfg.get('targets', []),
     syncTranscripts: transcripts?.workspaceValue ?? transcripts?.globalValue,
+    vaultPath: cfg.get('vaultPath', ''),
   };
 }
 

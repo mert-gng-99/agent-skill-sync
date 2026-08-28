@@ -185,6 +185,28 @@ test('an explicit false overrides the file - booleans have no "empty" to hide be
   assert.equal(merged.syncTranscripts, false);
 });
 
+test('a vaultPath set in VS Code settings overrides the file', () => {
+  const fileConfig = { syncRoot: '/x', machineId: 'macbook', vaultPath: '' };
+  const merged = extension.mergeVsCodeSettings(fileConfig, {
+    syncRoot: '',
+    machineId: '',
+    targets: [],
+    vaultPath: '/Users/x/Documents/EchoOS',
+  });
+  assert.equal(merged.vaultPath, '/Users/x/Documents/EchoOS');
+});
+
+test('an empty vaultPath in VS Code settings never clobbers a linked vault', () => {
+  const fileConfig = { syncRoot: '/x', machineId: 'macbook', vaultPath: '/already/linked' };
+  const merged = extension.mergeVsCodeSettings(fileConfig, {
+    syncRoot: '',
+    machineId: '',
+    targets: [],
+    vaultPath: '',
+  });
+  assert.equal(merged.vaultPath, '/already/linked');
+});
+
 test('picking a known project from the QuickPick actually links it, not just shows a guess', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-link-'));
   const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-link-root-'));

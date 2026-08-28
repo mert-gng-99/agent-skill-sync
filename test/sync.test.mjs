@@ -37,6 +37,16 @@ test('the transcripts pair only exists when syncTranscripts is enabled', () => {
   assert.ok(pair.remoteDir.startsWith('/sync'));
 });
 
+test('the vault pair only exists when vaultPath is set', () => {
+  const off = syncPairs({ syncRoot: '/sync', machineId: 'macbook', vaultPath: '' });
+  assert.ok(!off.some((p) => p.name === 'vault'), 'must be absent, not just empty - cost is zero');
+
+  const on = syncPairs({ syncRoot: '/sync', machineId: 'macbook', vaultPath: '/Users/x/Documents/EchoOS' });
+  const pair = on.find((p) => p.name === 'vault');
+  assert.ok(pair);
+  assert.equal(pair.localDir, '/Users/x/Documents/EchoOS');
+});
+
 test('runSync executes end-to-end sync plan', async () => {
   const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'cs-sync-run-'));
   const config = { syncRoot: tmpRoot, machineId: 'macbook', snapshotKeep: 5 };

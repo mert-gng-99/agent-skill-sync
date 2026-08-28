@@ -7,6 +7,7 @@ import { loadConfig } from '../src/config.mjs';
 import { runSync, syncPairs } from '../src/sync.mjs';
 import { runDoctor } from '../src/doctor.mjs';
 import { init } from '../src/init.mjs';
+import { vaultCommand } from '../src/vault.mjs';
 import { ensureIdentity, linkProject, forgetFile, readMarker } from '../src/project.mjs';
 import { loadRegistry, formatRegistry } from '../src/registry.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
@@ -24,6 +25,7 @@ const HELP = `agent-sync <command> [--dry-run] [--force]
   link <project-id>    Bind the current directory to an existing project
   forget <path>        Delete a file locally and remotely on purpose
   run <command...>     Pull, run the command, then push when it exits
+  vault [path]         Set up (Windows) or link (any OS) an avenoxbeyin vault
 
   --force              Push files even when they look like they contain secrets
   --hook               For automated callers (hooks): skip a folder with no
@@ -46,6 +48,7 @@ async function main() {
     return 0;
   }
   if (command === 'init') return init({ dryRun });
+  if (command === 'vault') return vaultCommand({ args, dryRun });
 
   const config = await loadConfig();
 

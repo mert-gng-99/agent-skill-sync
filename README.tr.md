@@ -25,6 +25,8 @@ English: [README.md](README.md)
 - `syncRoot` cihazlarınız arasında zaten senkronize olan bir dizindir (Google Drive, OneDrive, Dropbox, Syncthing veya yerel ağ paylaşımı). `agent-sync` dosya taşıma işini kendisi yapmaz, bulut sürücünüzün senkronizasyon yeteneğini kullanır.
 - Hafızanın etkili çalışması için `<syncRoot>/CLAUDE.md` veya paylaşılan genel talimatlara, ajanların kritik mimari kararları hafızaya kaydetmesini söyleyen bir kural eklenmelidir (Faz 0 hafıza politikası).
 
+İsteğe bağlı olarak, skill/hafıza ile birlikte senkronlamak için `vaultPath`'i yerel bir [avenoxbeyin](https://github.com/avenoxai/avenoxbeyin) (veya benzer) vault'una işaret edebilirsiniz - `agent-sync vault` Windows'ta uçtan uca kurar, herhangi bir işletim sisteminde ise mevcut bir vault'u bağlar.
+
 > ⚠️ **Önemli Uyarı**: `syncRoot` dizini içine kesinlikle bir `.git` deposu (`git init`) koymayın. İki farklı makineden eşzamanlı yazma durumunda `.git` veritabanı bozulabilir.
 
 ### 4. Kurulum ve Testler
@@ -77,6 +79,7 @@ Sonra VS Code eklentisini derle ve kur: `npx @vscode/vsce package --allow-missin
 | `link <project-id>` | Mevcut çalışma dizinini var olan bir proje kimliğine bağlar |
 | `forget <path>` | Bir dosyayı hem yerel hem de uzak depodan bilinçli olarak siler |
 | `run <command...>` | Komut öncesi pull yapar, komutu çalıştırır, çıkışta push yapar |
+| `vault [path]` | Windows'ta tam otomatik kurulum yapar veya herhangi bir OS'te mevcut bir second-brain vault'unu (örn. avenoxbeyin) bağlar |
 | `--force` | Sır benzeri içerik barındıran dosyaların da zorla push edilmesini sağlar |
 | `--hook` | Yalnızca otomatik çağıranlar için, örneğin `init`'in kurduğu Claude Code hook'ları (bkz. bölüm 4): henüz proje marker'ı olmayan bir klasörü, yeni proje oluşturmak yerine atlar |
 

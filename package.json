@@ -68,6 +68,11 @@
           "type": "boolean",
           "default": false,
           "description": "Sync Claude Code session transcripts so a project can be resumed from a different machine. Off by default: transcripts are large, grow without bound, and are not curated the way memory notes are."
+        },
+        "agent-sync.vaultPath": {
+          "type": "string",
+          "default": "",
+          "description": "Local path to a second-brain vault (e.g. avenoxbeyin) on this machine. Leave empty to skip syncing it."
         }
       }
     }

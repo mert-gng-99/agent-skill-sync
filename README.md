@@ -25,6 +25,8 @@ Türkçe: [README.tr.md](README.tr.md)
 - `syncRoot` is a folder that already syncs between your computers. You can use Google Drive, OneDrive, Dropbox, Syncthing, or a network share. `agent-sync` does not move files between computers itself. It uses your cloud tool for that.
 - Add a rule in `<syncRoot>/CLAUDE.md`, or in your shared instructions, that tells agents to save key decisions to memory. This is the "Phase 0" memory policy, and it is what makes the memory sync worth using.
 
+Optionally, point `vaultPath` at a local [avenoxbeyin](https://github.com/avenoxai/avenoxbeyin) (or similar) vault to sync it alongside skills/memory - `agent-sync vault` sets one up on Windows end-to-end, or links an existing one on any OS.
+
 > ⚠️ **Warning**: Do not put a Git repository (`.git`) inside `syncRoot`. If two computers write to it at the same time, the Git database can break.
 
 ### 4. Installation and testing
@@ -77,6 +79,7 @@ Then build and install the VS Code extension: `npx @vscode/vsce package --allow-
 | `link <project-id>` | Connects this folder to an existing project ID by hand |
 | `forget <path>` | Deletes a file on purpose, both locally and remotely |
 | `run <command...>` | Pulls first, runs your command, then pushes when it ends |
+| `vault [path]` | Set up (Windows, fully automated) or link (any OS) a second-brain vault like avenoxbeyin |
 | `--force` | Pushes files even when they look like they hold a secret |
 | `--hook` | For automated callers, like the Claude Code hooks from `init` (see section 4): skips a folder with no project marker yet, instead of creating a new project |
 

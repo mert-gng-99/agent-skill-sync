@@ -57,6 +57,22 @@ test('skips .git directories entirely - a skill cloned from a repo must not sync
   assert.deepEqual([...m.keys()].sort(), ['a.md', 'nested/b.md']);
 });
 
+test('.claude and .obsidian are ignored the same way .git is - tool/UI state, not authored content', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'as-manifest-vault-'));
+  await fs.mkdir(path.join(dir, '.claude', 'hooks'), { recursive: true });
+  await fs.writeFile(path.join(dir, '.claude', 'hooks', 'session-start.sh'), '#!/bin/bash\n');
+  await fs.mkdir(path.join(dir, '.obsidian'), { recursive: true });
+  await fs.writeFile(path.join(dir, '.obsidian', 'workspace.json'), '{}');
+  await fs.mkdir(path.join(dir, 'daily'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'daily', '2026-08-29.md'), '# log');
+
+  const manifest = await collectManifest(dir);
+  const names = [...manifest.keys()];
+  assert.ok(!names.some((n) => n.startsWith('.claude/')));
+  assert.ok(!names.some((n) => n.startsWith('.obsidian/')));
+  assert.ok(names.includes('daily/2026-08-29.md'));
+});
+
 test('takeSnapshot creates snapshot directory and copies pairs', async () => {
   const dir = await fixture();
   const snapPath = await takeSnapshot([{ name: 'test-src', dir }], 5);

@@ -8,7 +8,10 @@ export const IGNORED_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'state.json', 'c
 // marketplace). Its .git internals are not content anyone authored - syncing
 // them ships hundreds of loose objects and pack files for no reason, and
 // stock sample hook scripts routinely false-positive the secret scanner.
-const IGNORED_DIRS = new Set(['.git']);
+// Same reasoning for .claude (a synced vault's own hook/tool install - see
+// the vault sync pair in sync.mjs) and .obsidian (Obsidian's local UI/cache
+// state) - neither is authored content either.
+const IGNORED_DIRS = new Set(['.git', '.claude', '.obsidian']);
 
 /**
  * Returns a map of POSIX-style relative path -> content hash. Relative paths

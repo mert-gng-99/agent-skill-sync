@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG = {
   targets: [],
   syncTranscripts: true,
   snapshotKeep: 20,
+  vaultPath: '',
 };
 
 export function configPath() {
@@ -36,6 +37,9 @@ export function validateConfig(obj) {
     for (const t of targets) {
       if (!KNOWN_TARGETS.includes(t)) errors.push(`unknown target: ${t}`);
     }
+  }
+  if (obj?.vaultPath !== undefined && typeof obj.vaultPath !== 'string') {
+    errors.push('vaultPath must be a string');
   }
   return { ok: errors.length === 0, errors };
 }

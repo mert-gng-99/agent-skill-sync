@@ -46,3 +46,20 @@ test('configPath returns path under homeDir', () => {
   const p = configPath();
   assert.ok(p.endsWith(path.join('.agent-sync', 'config.json')));
 });
+
+test('vaultPath defaults to empty - disabled unless the user links one', () => {
+  assert.equal(DEFAULT_CONFIG.vaultPath, '');
+});
+
+test('an empty vaultPath is valid - it just means no vault is linked', () => {
+  assert.equal(
+    validateConfig({ syncRoot: '/x', machineId: 'macbook', vaultPath: '' }).ok,
+    true
+  );
+});
+
+test('a non-string vaultPath is rejected', () => {
+  const r = validateConfig({ syncRoot: '/x', machineId: 'macbook', vaultPath: 42 });
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('vaultPath')));
+});

@@ -74,6 +74,13 @@ export function syncPairs(config) {
       remoteDir: path.join(config.syncRoot, 'transcripts'),
     });
   }
+  // An avenoxbeyin (or similar) vault linked via `agent-sync vault <path>`.
+  // localDir points directly at the vault itself, not a staged mirror - the
+  // vault's own local git repo and .claude/.obsidian tool state are already
+  // excluded by manifest.mjs's IGNORED_DIRS, so this is safe to sync as-is.
+  if (config.vaultPath) {
+    pairs.push({ name: 'vault', localDir: config.vaultPath, remoteDir: path.join(config.syncRoot, 'vault') });
+  }
   return pairs;
 }
 
