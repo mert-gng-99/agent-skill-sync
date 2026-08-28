@@ -39,10 +39,10 @@ test('exposes syncRoot, machineId, targets, syncTranscripts and vaultPath as set
   ]);
 });
 
-test('syncTranscripts is a real checkbox, defaulting off', () => {
+test('syncTranscripts is a real checkbox, defaulting on', () => {
   const prop = manifest.contributes.configuration.properties['agent-sync.syncTranscripts'];
   assert.equal(prop.type, 'boolean');
-  assert.equal(prop.default, false);
+  assert.equal(prop.default, true);
 });
 
 test('the targets setting offers a pick-list matching every known adapter', () => {

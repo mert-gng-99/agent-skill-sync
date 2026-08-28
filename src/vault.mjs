@@ -108,10 +108,7 @@ async function askAnswers(rl) {
   const userBio = (await rl.question('Ne iş yapıyorsun? (1-2 cümle, boş geçilebilir): ')).trim();
   const companion = (await rl.question('AI ortağına ne ad vermek istersin? ')).trim();
   const osName = resolveOsName(companion);
-  const defaultVaultPath =
-    process.platform === 'win32'
-      ? path.join(os.homedir(), 'Documents', osName)
-      : path.join(os.homedir(), 'Documents', osName);
+  const defaultVaultPath = path.join(os.homedir(), 'Documents', osName);
   const vaultPathAnswer = (
     await rl.question(`Vault nereye kurulsun? [${defaultVaultPath}]: `)
   ).trim();
