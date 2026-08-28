@@ -1,5 +1,7 @@
 # agent-sync (Türkçe)
 
+**Basitçe: yapay zeka asistanının hafızasını, skill'lerini ve ayarlarını kullandığın her bilgisayarda aynı tutar - makine değiştir, araç değiştir, sana öğrettiği her şeyi hâlâ hatırlar.**
+
 English: [README.md](README.md)
 
 `agent-sync`, kodlama ajanlarının (**Claude Code, Codex, OpenCode, Gemini CLI, Aider, Cursor**) skill'lerini, kalıcı hafızasını ve paylaşılan ayarlarını hem **makineler** (macOS, Windows, Linux) hem **araçlar** arasında senkronize eden, sıfır bağımlılıklı bir Node.js CLI aracıdır. Dosya yolu makineden makineye değişse bile yol-bağımsız kimlik çözümlemesi sayesinde aynı projeyi tanır.

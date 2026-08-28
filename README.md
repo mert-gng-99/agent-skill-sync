@@ -1,5 +1,7 @@
 # agent-sync
 
+**In plain terms: it keeps your AI assistant's memory, skills, and settings the same on every computer you use - switch machines or switch tools, and it still remembers what you taught it.**
+
 Türkçe: [README.tr.md](README.tr.md)
 
 `agent-sync` is a small Node.js tool for developers. It keeps your AI coding skills, memory, and settings the same across many computers (macOS, Windows, Linux) and many AI tools (**Claude Code, Codex, OpenCode, Gemini CLI, Aider, Cursor**). It has no extra dependencies. It finds the same project even when the folder path is different on each computer.
