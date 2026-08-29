@@ -31,12 +31,13 @@ test('the entry point loads the way the extension host loads it', () => {
   assert.equal(typeof extension.deactivate, 'function');
 });
 
-test('activate registers the five contributed commands', async () => {
+test('activate registers the six contributed commands', async () => {
   const context = { subscriptions: [] };
   await extension.activate(context);
 
   const ids = vscodeStub.__registeredCommands.map((c) => c.id).sort();
   assert.deepEqual(ids, [
+    'agent-sync.addProjectToBrain',
     'agent-sync.doctor',
     'agent-sync.link',
     'agent-sync.menu',

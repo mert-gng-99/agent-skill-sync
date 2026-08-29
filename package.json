@@ -39,6 +39,10 @@
       {
         "command": "agent-sync.link",
         "title": "agent-sync: Link this folder to a project"
+      },
+      {
+        "command": "agent-sync.addProjectToBrain",
+        "title": "agent-sync: Add this project to Brain"
       }
     ],
     "configuration": {

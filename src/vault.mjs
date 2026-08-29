@@ -5,8 +5,10 @@ import process from 'node:process';
 import readline from 'node:readline/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { homeDir } from './paths.mjs';
 import { loadConfig, saveConfig } from './config.mjs';
+import { addToGitExclude } from './project.mjs';
 
 const run = promisify(execFile);
 const AVENOXBEYIN_REMOTE = 'https://github.com/avenoxai/avenoxbeyin.git';
@@ -168,4 +170,59 @@ export async function vaultCommand({ args, dryRun }) {
     `Kurulum bittikten sonra: agent-sync vault ${answers.vaultPath}\n`
   );
   return 0;
+}
+
+function beyinHookCommand() {
+  const bin = fileURLToPath(new URL('../bin/agent-sync.mjs', import.meta.url));
+  return `node "${bin}"`;
+}
+
+const BEYIN_HOOK_MARK = 'beyin-hook';
+
+/**
+ * Adds the three hooks that flush this project's sessions into whatever
+ * vault is linked on this machine, without disturbing any other hook already
+ * in settings.local.json. Idempotent: re-running replaces our own entries
+ * rather than duplicating them (matches buildHooks in adapters/claude.mjs).
+ */
+export function buildBeyinHooks(existingSettings) {
+  const settings = { ...existingSettings, hooks: { ...(existingSettings.hooks ?? {}) } };
+  for (const [event, arg] of [
+    ['SessionEnd', 'sessionend'],
+    ['PreCompact', 'precompact'],
+    ['SessionStart', 'sessionstart'],
+  ]) {
+    const command = `${beyinHookCommand()} beyin-hook --event ${arg}`;
+    const current = (settings.hooks[event] ?? []).filter(
+      (entry) => !JSON.stringify(entry).includes(BEYIN_HOOK_MARK)
+    );
+    settings.hooks[event] = [...current, { hooks: [{ type: 'command', command }] }];
+  }
+  return settings;
+}
+
+/**
+ * `agent-sync: Add this project to Brain`. Writes into this project's own
+ * .claude/settings.local.json, never settings.json - the hook command bakes
+ * in this machine's absolute vault path, the same reason vaultPath itself
+ * lives in local config.json rather than anything synced between machines.
+ * Defensively git-excluded too, in case the user's global gitignore does not
+ * already cover settings.local.json (Claude Code's own convention, but not
+ * guaranteed on every machine).
+ */
+export async function addProjectToBrain(cwd) {
+  const config = await loadConfig();
+  if (!config.vaultPath) {
+    return { ok: false, message: 'Önce bir vault bağla: agent-sync vault <path>' };
+  }
+  if (!(await isValidVault(config.vaultPath))) {
+    return { ok: false, message: `${config.vaultPath} geçerli bir avenoxbeyin vault'u gibi görünmüyor.` };
+  }
+  const claudeDir = path.join(cwd, '.claude');
+  const settingsPath = path.join(claudeDir, 'settings.local.json');
+  const existing = JSON.parse(await fs.readFile(settingsPath, 'utf8').catch(() => '{}'));
+  await fs.mkdir(claudeDir, { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify(buildBeyinHooks(existing), null, 2) + '\n', 'utf8');
+  await addToGitExclude(cwd, '.claude/settings.local.json');
+  return { ok: true, message: `Bu projenin oturumları artık ${config.vaultPath} beynine akıyor.` };
 }

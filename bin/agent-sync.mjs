@@ -8,6 +8,7 @@ import { runSync, syncPairs } from '../src/sync.mjs';
 import { runDoctor } from '../src/doctor.mjs';
 import { init } from '../src/init.mjs';
 import { vaultCommand } from '../src/vault.mjs';
+import { runBeyinHook } from '../src/beyin-hook.mjs';
 import { ensureIdentity, linkProject, forgetFile, readMarker } from '../src/project.mjs';
 import { loadRegistry, formatRegistry } from '../src/registry.mjs';
 import { applyAdapters, collectFromTools } from '../src/adapters/index.mjs';
@@ -26,6 +27,9 @@ const HELP = `agent-sync <command> [--dry-run] [--force]
   forget <path>        Delete a file locally and remotely on purpose
   run <command...>     Pull, run the command, then push when it exits
   vault [path]         Set up (Windows) or link (any OS) an avenoxbeyin vault
+  beyin-hook --event <sessionend|precompact|sessionstart>
+                       (internal) called by a project's own hooks once
+                       "Add this project to Brain" has linked it to a vault
 
   --force              Push files even when they look like they contain secrets
   --hook               For automated callers (hooks): skip a folder with no
@@ -34,7 +38,13 @@ const HELP = `agent-sync <command> [--dry-run] [--force]
 
 // Hooks and the VS Code extension call this binary. It must never take a
 // session down with it.
-const HOOK_SAFE = new Set(['pull', 'push']);
+const HOOK_SAFE = new Set(['pull', 'push', 'beyin-hook']);
+
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -49,6 +59,12 @@ async function main() {
   }
   if (command === 'init') return init({ dryRun });
   if (command === 'vault') return vaultCommand({ args, dryRun });
+  if (command === 'beyin-hook') {
+    const eventIndex = args.indexOf('--event');
+    const event = eventIndex !== -1 ? args[eventIndex + 1] : null;
+    const payload = await readStdin();
+    return runBeyinHook({ event, payload });
+  }
 
   const config = await loadConfig();
 

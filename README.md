@@ -128,6 +128,7 @@ Clicking the status bar item opens a quick menu with all the commands below, Set
 - `agent-sync: Run health checks` shows `doctor` output in the Output panel.
 - `agent-sync: Show all projects` lists every project `agent-sync` knows about, with the path it has on each of your machines. Same data as `agent-sync projects` on the CLI, read straight from `registry.json`.
 - `agent-sync: Link this folder to a project` shows which project this folder matches right now, and how. It also lets you pick a different known project, or make a new one. Use it when the automatic match picks the wrong project, for example when two projects share a folder name. It does the same job as `agent-sync link <id>` on the CLI.
+- `agent-sync: Add this project to Brain` links this folder's own `.claude/settings.local.json` to the avenoxbeyin (or similar) vault set in `vaultPath` (see section 3), so this project's sessions start flushing into that vault's `daily/` log the same way sessions inside the vault itself already do. Requires a vault to be linked first (`agent-sync vault`); does nothing otherwise.
 
 **Settings** (press `Cmd/Ctrl + ,`, then search "agent-sync"): you can set `syncRoot`, `machineId`, and `targets` here, so you never need to hand edit `config.json`. `targets` is a pick list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free text. If you leave a field empty, `agent-sync` keeps the value already in `config.json`. The Settings screen only changes the fields you actually touch.
 

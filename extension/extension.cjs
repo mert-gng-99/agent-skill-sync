@@ -18,7 +18,8 @@ function engine() {
       import('../src/project.mjs'),
       import('../src/doctor.mjs'),
       import('../src/registry.mjs'),
-    ]).then(([config, sync, adapters, claudeAdapter, project, doctor, registry]) => ({
+      import('../src/vault.mjs'),
+    ]).then(([config, sync, adapters, claudeAdapter, project, doctor, registry, vault]) => ({
       DEFAULT_CONFIG: config.DEFAULT_CONFIG,
       validateConfig: config.validateConfig,
       loadConfig: config.loadConfig,
@@ -34,6 +35,7 @@ function engine() {
       runDoctor: doctor.runDoctor,
       loadRegistry: registry.loadRegistry,
       formatRegistry: registry.formatRegistry,
+      addProjectToBrain: vault.addProjectToBrain,
     }));
   }
   return enginePromise;
@@ -327,6 +329,24 @@ async function doLink() {
   sync({ silent: false, direction: 'both' });
 }
 
+// "agent-sync: Add this project to Brain" - links this workspace's own
+// .claude/settings.local.json to whatever avenoxbeyin vault is configured on
+// this machine, so its sessions start flowing into daily/ and knowledge/.
+async function doAddProjectToBrain() {
+  const cwd = workspaceRoot();
+  if (!cwd) {
+    vscode.window.showWarningMessage('agent-sync: open a folder first.');
+    return;
+  }
+  const { addProjectToBrain } = await engine();
+  const result = await addProjectToBrain(cwd);
+  if (result.ok) {
+    vscode.window.showInformationMessage(`agent-sync: ${result.message}`);
+  } else {
+    vscode.window.showWarningMessage(`agent-sync: ${result.message}`);
+  }
+}
+
 function openSettings() {
   return vscode.commands.executeCommand('workbench.action.openSettings', 'agent-sync');
 }
@@ -343,6 +363,7 @@ async function showMenu() {
       { label: '$(pulse) Run health checks', action: doDoctor },
       { label: '$(list-tree) Show all projects', action: doProjects },
       { label: '$(link) Link this folder to a project', action: doLink },
+      { label: '$(book) Add this project to Brain', action: doAddProjectToBrain },
       { label: '$(gear) Open Settings', action: openSettings },
     ],
     { placeHolder: 'agent-sync' }
@@ -365,6 +386,7 @@ async function activate(context) {
     vscode.commands.registerCommand('agent-sync.doctor', doDoctor),
     vscode.commands.registerCommand('agent-sync.projects', doProjects),
     vscode.commands.registerCommand('agent-sync.link', doLink),
+    vscode.commands.registerCommand('agent-sync.addProjectToBrain', doAddProjectToBrain),
     // Focus regained means another machine may have pushed since we last looked.
     // Focus lost is the moment to send up whatever this session produced.
     vscode.window.onDidChangeWindowState((s) => {
