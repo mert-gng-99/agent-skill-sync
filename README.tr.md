@@ -131,6 +131,8 @@ Durum çubuğundaki `agent-sync` yazısına tıklamak, aşağıdaki tüm komutla
 
 **Ayarlar** (`Cmd/Ctrl + ,` → "agent-sync" ara): `syncRoot`, `machineId`, `targets` doğrudan buradan değiştirilebilir, `config.json`'ı elle düzenlemeye gerek yok. `targets` bir seçim listesidir (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), JSON yazmadan işaretlersin. Bir ayarı hiç dokunmadan boş bırakırsan mevcut `config.json` değeri korunur. Settings ekranı yalnızca **gerçekten değiştirdiğin** alanları ezer.
 
+İsteğe bağlı olarak, `agent-sync.autoResumeLastSession` ayarını açarak bir projeyi açtığında panelin boş bir konuşma yerine o projenin en son konuşmasına otomatik dönmesini sağlayabilirsin — resmi `vscode://anthropic.claude-code/open` deep link'i kullanır (Claude Code VS Code dokümantasyonu). Varsayılan olarak kapalıdır.
+
 ### 10. Bilinçli Sınırlar
 - Bir cihazda silinen dosya senkronizasyonda silinmez, diğer cihazdan geri getirilir. Kasıtlı silme yalnızca `forget` komutuyla yapılır.
 - Senkronizasyon anlık akış değil, oturum başı/sonu veya komut sarmalayıcısı (`run`) ile çalışır.

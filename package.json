@@ -73,6 +73,11 @@
           "type": "string",
           "default": "",
           "description": "Local path to a second-brain vault (e.g. avenoxbeyin) on this machine. Leave empty to skip syncing it."
+        },
+        "agent-sync.autoResumeLastSession": {
+          "type": "boolean",
+          "default": false,
+          "description": "When this workspace opens, automatically resume the most recent Claude Code conversation for this project instead of starting a blank one. Uses the official vscode://anthropic.claude-code/open deep link."
         }
       }
     }

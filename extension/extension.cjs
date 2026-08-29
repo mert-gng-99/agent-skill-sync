@@ -14,10 +14,11 @@ function engine() {
       import('../src/config.mjs'),
       import('../src/sync.mjs'),
       import('../src/adapters/index.mjs'),
+      import('../src/adapters/claude.mjs'),
       import('../src/project.mjs'),
       import('../src/doctor.mjs'),
       import('../src/registry.mjs'),
-    ]).then(([config, sync, adapters, project, doctor, registry]) => ({
+    ]).then(([config, sync, adapters, claudeAdapter, project, doctor, registry]) => ({
       DEFAULT_CONFIG: config.DEFAULT_CONFIG,
       validateConfig: config.validateConfig,
       loadConfig: config.loadConfig,
@@ -26,6 +27,7 @@ function engine() {
       syncPairs: sync.syncPairs,
       applyAdapters: adapters.applyAdapters,
       collectFromTools: adapters.collectFromTools,
+      mostRecentSessionId: (cwd) => claudeAdapter.claude.mostRecentSessionId(cwd),
       ensureIdentity: project.ensureIdentity,
       linkProject: project.linkProject,
       readMarker: project.readMarker,
@@ -232,6 +234,27 @@ function serialize(fn) {
 // just never at the same time as another.
 const sync = serialize(syncOnce);
 
+/**
+ * Opt-in (agent-sync.autoResumeLastSession, default off). Fires once when
+ * the workspace opens - not on every focus change, since re-triggering this
+ * on every alt-tab back into VS Code would reset the panel back to that
+ * session mid-work, which is disruptive rather than helpful. Uses the
+ * official vscode://anthropic.claude-code/open deep link - see
+ * https://code.claude.com/docs/en/vs-code.md - not a registered VS Code
+ * command, so this must go through vscode.env.openExternal, never
+ * vscode.commands.executeCommand.
+ */
+async function maybeAutoResume() {
+  const enabled = vscode.workspace.getConfiguration('agent-sync').get('autoResumeLastSession', false);
+  if (!enabled) return;
+  const cwd = workspaceRoot();
+  if (!cwd) return;
+  const { mostRecentSessionId } = await engine();
+  const sessionId = await mostRecentSessionId(cwd).catch(() => null);
+  if (!sessionId) return;
+  await vscode.env.openExternal(vscode.Uri.parse(`vscode://anthropic.claude-code/open?session=${sessionId}`));
+}
+
 function doSync() {
   return sync({ silent: false, direction: 'both' });
 }
@@ -357,7 +380,8 @@ async function activate(context) {
   );
 
   await applyVsCodeSettings();
-  sync({ silent: true, direction: 'in', requireExisting: true });
+  await sync({ silent: true, direction: 'in', requireExisting: true });
+  await maybeAutoResume();
 }
 
 function deactivate() {

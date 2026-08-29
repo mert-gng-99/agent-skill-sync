@@ -28,9 +28,10 @@ test('activates on startup so window events can be observed', () => {
   assert.ok(manifest.activationEvents.includes('onStartupFinished'));
 });
 
-test('exposes syncRoot, machineId, targets, syncTranscripts and vaultPath as settings', () => {
+test('exposes syncRoot, machineId, targets, syncTranscripts, vaultPath and autoResumeLastSession as settings', () => {
   const keys = Object.keys(manifest.contributes.configuration.properties).sort();
   assert.deepEqual(keys, [
+    'agent-sync.autoResumeLastSession',
     'agent-sync.machineId',
     'agent-sync.syncRoot',
     'agent-sync.syncTranscripts',

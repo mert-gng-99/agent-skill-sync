@@ -131,6 +131,8 @@ Clicking the status bar item opens a quick menu with all the commands below, Set
 
 **Settings** (press `Cmd/Ctrl + ,`, then search "agent-sync"): you can set `syncRoot`, `machineId`, and `targets` here, so you never need to hand edit `config.json`. `targets` is a pick list (`claude`, `codex`, `opencode`, `gemini`, `aider`, `cursor`), not free text. If you leave a field empty, `agent-sync` keeps the value already in `config.json`. The Settings screen only changes the fields you actually touch.
 
+Optionally, turn on `agent-sync.autoResumeLastSession` in Settings to have the panel automatically resume the most recent conversation for a project when you open it, instead of starting blank - uses the official `vscode://anthropic.claude-code/open` deep link (Claude Code VS Code docs). Off by default.
+
 ### 10. Design limits
 - Deletions do not spread. If you delete a file on one computer, `agent-sync` brings it back from the remote copy. To delete a file on purpose, use `agent-sync forget <path>`.
 - Sync is not live streaming. It runs at the start and end of a session, or through the `run` command wrapper.

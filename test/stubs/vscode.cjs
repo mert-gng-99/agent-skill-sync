@@ -12,6 +12,7 @@ const registeredCommands = [];
 const outputLines = [];
 const executedCommands = [];
 const statusBarItems = [];
+const openedUris = [];
 
 module.exports = {
   StatusBarAlignment: { Left: 1, Right: 2 },
@@ -19,6 +20,14 @@ module.exports = {
     constructor(id) {
       this.id = id;
     }
+  },
+  Uri: {
+    parse: (s) => ({ toString: () => s, _raw: s }),
+  },
+  env: {
+    openExternal: async (uri) => {
+      openedUris.push(uri.toString());
+    },
   },
   window: {
     createOutputChannel: () => ({
@@ -74,4 +83,5 @@ module.exports = {
   __outputLines: outputLines,
   __executedCommands: executedCommands,
   __statusBarItems: statusBarItems,
+  __openedUris: openedUris,
 };

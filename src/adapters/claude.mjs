@@ -159,4 +159,25 @@ export const claude = {
       await fs.copyFile(path.join(src, name), path.join(dest, name)).catch(() => {});
     }
   },
+
+  /**
+   * The newest session for this project, by transcript mtime - the session
+   * ID the VS Code extension's vscode://anthropic.claude-code/open?session=
+   * deep link expects. Returns null if this project has no local transcripts
+   * yet (a fresh clone, or before the first sync).
+   */
+  async mostRecentSessionId(cwd) {
+    const dir = path.join(claudeHome(), 'projects', slugForPath(cwd));
+    const entries = await fs.readdir(dir).catch(() => []);
+    const jsonl = entries.filter((name) => name.endsWith('.jsonl'));
+    if (jsonl.length === 0) return null;
+    const withMtime = await Promise.all(
+      jsonl.map(async (name) => {
+        const stat = await fs.stat(path.join(dir, name)).catch(() => null);
+        return { name, mtimeMs: stat?.mtimeMs ?? 0 };
+      })
+    );
+    withMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    return withMtime[0].name.replace(/\.jsonl$/, '');
+  },
 };

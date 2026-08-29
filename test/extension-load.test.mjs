@@ -307,7 +307,7 @@ test('automatic triggers never turn an unlinked folder into a new project', asyn
 
   vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
   const context = { subscriptions: [] };
-  await extension.activate(context); // fires an un-awaited requireExisting:true sync internally
+  await extension.activate(context); // awaits its own requireExisting:true sync before checking auto-resume
   await extension.deactivate(); // this one we can await directly - same guard
 
   await assert.rejects(() => fs.readFile(path.join(cwd, '.claude-project-id')));
@@ -329,4 +329,48 @@ test('the explicit "Sync now" command is still allowed to create a new project',
   await fs.readFile(path.join(cwd, '.claude-project-id'), 'utf8'); // must now exist
 
   vscodeStub.workspace.workspaceFolders = undefined;
+});
+
+test('autoResumeLastSession is off by default and does nothing when disabled', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-resume-off-'));
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-resume-off-root-'));
+  await seedConfig(syncRoot);
+
+  vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
+  vscodeStub.__openedUris.length = 0;
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+
+  assert.deepEqual(vscodeStub.__openedUris, []);
+  vscodeStub.workspace.workspaceFolders = undefined;
+});
+
+test('autoResumeLastSession opens the newest local session via the official deep link', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-resume-on-'));
+  const syncRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'as-ext-resume-on-root-'));
+  await seedConfig(syncRoot);
+  await fs.writeFile(path.join(cwd, '.claude-project-id'), 'proj-resume-test\n');
+
+  const { slugForPath } = await import('../src/paths.mjs');
+  const dir = path.join(os.homedir(), '.claude', 'projects', slugForPath(cwd));
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, 'session-abc.jsonl'), '{}');
+
+  vscodeStub.workspace.getConfiguration = () => ({
+    get: (key, fallback) => (key === 'autoResumeLastSession' ? true : fallback),
+    inspect: () => ({ workspaceValue: undefined, globalValue: undefined }),
+  });
+  vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: cwd } }];
+  vscodeStub.__openedUris.length = 0;
+  const context = { subscriptions: [] };
+  await extension.activate(context);
+
+  assert.equal(vscodeStub.__openedUris.length, 1);
+  assert.match(vscodeStub.__openedUris[0], /vscode:\/\/anthropic\.claude-code\/open\?session=session-abc$/);
+
+  vscodeStub.workspace.workspaceFolders = undefined;
+  vscodeStub.workspace.getConfiguration = () => ({
+    get: (key, fallback) => fallback,
+    inspect: () => ({ workspaceValue: undefined, globalValue: undefined }),
+  });
 });

@@ -319,3 +319,25 @@ test('collect drops a skill folder the user removed', async () => {
 
   assert.ok(!(await fs.readdir(stagedSkillsDir())).includes('old-skill'));
 });
+
+test('mostRecentSessionId returns null when the project has no transcripts yet', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-resume-empty-'));
+  assert.equal(await claude.mostRecentSessionId(cwd), null);
+});
+
+test('mostRecentSessionId picks the newest .jsonl by mtime, not by name', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'as-resume-'));
+  const dir = path.join(os.homedir(), '.claude', 'projects', slugForPath(cwd));
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, 'zzz-older.jsonl'), '{}');
+  await fs.writeFile(path.join(dir, 'aaa-newer.jsonl'), '{}');
+  // Force a deterministic mtime order regardless of how fast these two
+  // writes landed - alphabetically "zzz" would sort last, so this also
+  // proves the function sorts by time, not by name.
+  const older = new Date(Date.now() - 60_000);
+  const newer = new Date();
+  await fs.utimes(path.join(dir, 'zzz-older.jsonl'), older, older);
+  await fs.utimes(path.join(dir, 'aaa-newer.jsonl'), newer, newer);
+
+  assert.equal(await claude.mostRecentSessionId(cwd), 'aaa-newer');
+});
